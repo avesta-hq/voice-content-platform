@@ -88,3 +88,41 @@ export interface AuthResponse {
   token: string;
   expiresAt: string;
 }
+
+// Document Management Types
+export interface UserDocument {
+  id: string;
+  userId: number;
+  title: string;
+  description?: string;
+  inputLanguage: string;
+  outputLanguage: string;
+  createdAt: string;
+  updatedAt: string;
+  
+  // Content Management
+  sessions: string[] | VoiceSession[]; // Can be either session IDs or full session objects
+  totalDuration: number;
+  wordCount: number;
+}
+
+export interface VoiceSession {
+  id: string;
+  documentId: string;
+  sessionNumber: number;
+  transcript: string;
+  duration: number;
+  timestamp: string;
+  notes?: string;
+}
+
+export interface DocumentWithSessions extends UserDocument {
+  sessions: VoiceSession[];
+}
+
+export interface CreateDocumentData {
+  title: string;
+  description?: string;
+  inputLanguage: string;
+  outputLanguage: string;
+}

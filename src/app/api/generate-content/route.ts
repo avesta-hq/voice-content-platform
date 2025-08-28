@@ -3,11 +3,15 @@ import { generateAllContent } from '@/lib/openai';
 
 export async function POST(request: NextRequest) {
   try {
-    const { originalText, inputLanguage, outputLanguage } = await request.json();
+    const body = await request.json();
+    
+    // Accept both 'text' and 'originalText' for compatibility
+    const originalText = body.originalText || body.text;
+    const { inputLanguage, outputLanguage } = body;
 
     if (!originalText || !inputLanguage || !outputLanguage) {
       return NextResponse.json(
-        { error: 'Missing required fields: originalText, inputLanguage, and outputLanguage' },
+        { error: 'Missing required fields: text/originalText, inputLanguage, and outputLanguage' },
         { status: 400 }
       );
     }
@@ -21,10 +25,7 @@ export async function POST(request: NextRequest) {
 
     const content = await generateAllContent(originalText, inputLanguage, outputLanguage);
 
-    return NextResponse.json({
-      success: true,
-      content
-    });
+    return NextResponse.json(content);
 
   } catch (error) {
     console.error('Content generation error:', error);

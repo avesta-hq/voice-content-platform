@@ -7,9 +7,10 @@ interface ContentDisplayProps {
   originalText: string;
   generatedContent: PlatformContent[];
   onReset: () => void;
+  onBackToDashboard: () => void;
 }
 
-export default function ContentDisplay({ originalText, generatedContent, onReset }: ContentDisplayProps) {
+export default function ContentDisplay({ originalText, generatedContent, onReset, onBackToDashboard }: ContentDisplayProps) {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -40,12 +41,6 @@ export default function ContentDisplay({ originalText, generatedContent, onReset
         <p className="text-gray-600 mb-6">
           Your voice has been transformed into multiple content formats while preserving your original message.
         </p>
-        <button
-          onClick={onReset}
-          className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          Create New Content
-        </button>
       </div>
 
       {/* Original Input Display */}
@@ -102,6 +97,14 @@ export default function ContentDisplay({ originalText, generatedContent, onReset
         <p className="text-green-800 font-medium">
           Content generation complete! You can now copy, download, or share your content.
         </p>
+      </div>
+      <div className="flex justify-center space-x-4 mt-6">
+        <button
+          onClick={onBackToDashboard}
+          className="px-8 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+        >
+          Back to Dashboard
+        </button>
       </div>
     </div>
   );

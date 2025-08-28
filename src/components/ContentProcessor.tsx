@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { AIProcessingState, PlatformContent, LanguageSettings } from '@/types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PlatformContent, LanguageSettings } from '@/types';
 
 interface ContentProcessorProps {
   originalText: string;
@@ -10,138 +10,116 @@ interface ContentProcessorProps {
 }
 
 export default function ContentProcessor({ originalText, languageSettings, onProcessingComplete }: ContentProcessorProps) {
-  const [processingState, setProcessingState] = useState<AIProcessingState>({
-    isProcessing: false,
-    progress: 0,
-    currentStep: ''
-  });
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
 
-  const [generatedContent, setGeneratedContent] = useState<PlatformContent[]>([]);
-  const [error, setError] = useState<string>('');
-
-  const processContent = async () => {
-    setProcessingState({
-      isProcessing: true,
-      progress: 0,
-      currentStep: 'Initializing AI processing...'
-    });
+  // Remove auto-processing - only process when explicitly called
+  const processContent = useCallback(async () => {
+    if (!originalText.trim()) return;
+    
+    setProgress(0);
+    setCurrentStep('Initializing AI processing...');
 
     try {
-      const steps = [
-        'Analyzing input content...',
-        'Generating blog post...',
-        'Creating LinkedIn post...',
-        'Formatting Twitter post...',
-        'Preparing podcast script...',
-        'Finalizing content...'
-      ];
-
-      // Update progress for each step
-      for (let i = 0; i < steps.length; i++) {
-        setProcessingState(prev => ({
-          ...prev,
-          currentStep: steps[i],
-          progress: ((i + 1) / steps.length) * 100
-        }));
-
-        // Small delay to show progress
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
-
-      // Try to make API call to generate content
-      let content;
-      try {
-        console.log('Making API call to generate content...');
-        const response = await fetch('/api/generate-content', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            originalText,
-            inputLanguage: languageSettings.inputLanguage,
-            outputLanguage: languageSettings.outputLanguage
-          }),
-        });
-
-        console.log('API Response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('API Response data:', data);
-          
-          if (data.success) {
-            content = data.content;
-            console.log('Content received from API:', content);
-          } else {
-            throw new Error(data.error || 'Failed to generate content');
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
           }
-        } else {
-          throw new Error(`API request failed: ${response.status}`);
-        }
-      } catch (apiError) {
-        console.log('API call failed, using demo content:', apiError);
-        // Fallback to demo content if API fails
-        content = generateDemoContent(originalText);
-        console.log('Using demo content:', content);
+          return prev + 10;
+        });
+      }, 200);
+
+      // Update steps
+      setTimeout(() => setCurrentStep('Analyzing your content...'), 500);
+      setTimeout(() => setCurrentStep('Generating platform-specific content...'), 1500);
+      setTimeout(() => setCurrentStep('Optimizing for each platform...'), 2500);
+      setTimeout(() => setCurrentStep('Finalizing content...'), 3500);
+
+      // Make API call
+      const response = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: originalText,
+          inputLanguage: languageSettings.inputLanguage,
+          outputLanguage: languageSettings.outputLanguage,
+        }),
+      });
+
+      clearInterval(progressInterval);
+      setProgress(100);
+      setCurrentStep('Content generation complete!');
+
+      if (response.ok) {
+        const content = await response.json();
+        // Transform the API response to match our expected format
+        const transformedContent = [
+          { platform: 'Blog Post', content: content.blogPost, formatted: true },
+          { platform: 'LinkedIn', content: content.linkedinPost, formatted: true },
+          { platform: 'Twitter', content: content.twitterPost, formatted: true },
+          { platform: 'Podcast Script', content: content.podcastScript, formatted: true }
+        ];
+        setTimeout(() => {
+          onProcessingComplete(transformedContent);
+        }, 500);
+      } else {
+        throw new Error(`API error: ${response.status}`);
       }
-
-      // Transform content to our format
-      const contentArray: PlatformContent[] = [
-        {
-          platform: 'blog',
-          content: content.blogPost,
-          formatted: true
-        },
-        {
-          platform: 'linkedin',
-          content: content.linkedinPost,
-          formatted: true
-        },
-        {
-          platform: 'twitter',
-          content: content.twitterPost,
-          formatted: true
-        },
-        {
-          platform: 'podcast',
-          content: content.podcastScript,
-          formatted: true
-        }
-      ];
-
-      console.log('Final content array:', contentArray);
-      setGeneratedContent(contentArray);
-      onProcessingComplete(contentArray);
+    } catch (error) {
+      console.error('OpenAI API error:', error);
       
-      setProcessingState({
-        isProcessing: false,
-        progress: 100,
-        currentStep: 'Processing complete!'
-      });
-
-    } catch (err) {
-      console.error('Processing error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to process content. Please try again.');
-      setProcessingState({
-        isProcessing: false,
-        progress: 0,
-        currentStep: ''
-      });
+      // Fallback to demo content
+      const demoContent = generateDemoContent(originalText);
+      setTimeout(() => {
+        onProcessingComplete(demoContent);
+      }, 500);
     }
-  };
+  }, [originalText, languageSettings, onProcessingComplete]);
 
-  // Generate demo content when API is not available
-  const generateDemoContent = (originalText: string) => {
-    return {
-      blogPost: `# Blog Post: ${originalText}\n\nThis is a well-structured blog post based on your voice input. The content maintains your original meaning while providing proper formatting and structure for readers.\n\n## Key Points\n- Your original message: "${originalText}"\n- Professional blog formatting\n- SEO-friendly structure\n- Engaging content flow\n\n## Summary\nYour voice input has been transformed into a comprehensive blog post that preserves your original intent while optimizing it for online readers.`,
-      
-      linkedinPost: `Professional LinkedIn Post\n\nBased on your input: "${originalText}"\n\nThis engaging content is optimized for professional networking while maintaining your original message. Perfect for building your professional brand and engaging with your network.\n\n#ProfessionalDevelopment #Networking #ContentCreation`,
-      
-      twitterPost: `Twitter Post: "${originalText}"\n\nEngaging content that preserves your original meaning while being optimized for Twitter's character limit and engagement patterns.`,
-      
-      podcastScript: `Podcast Script\n\n[Introduction]\nWelcome to today's episode where we'll discuss: "${originalText}"\n\n[Main Content]\nBased on your voice input, here's the structured podcast content:\n\n• Point 1: ${originalText}\n• Point 2: Related insights and discussion\n• Point 3: Practical applications\n\n[Conclusion]\nThank you for listening. Remember, your original message stays intact while we optimize it for audio delivery.`
-    };
+  // Remove useEffect that auto-triggers processing
+  // useEffect(() => {
+  //   if (originalText.trim()) {
+  //     processContent();
+  //   }
+  // }, [originalText, processContent]);
+
+  // Start processing immediately when component mounts
+  useEffect(() => {
+    if (originalText.trim()) {
+      processContent();
+    }
+  }, []); // Empty dependency array - only run once on mount
+
+  const generateDemoContent = (text: string): PlatformContent[] => {
+    const truncatedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+    
+    return [
+      {
+        platform: 'Blog Post',
+        content: `Here's a professional blog post based on your content: "${truncatedText}"\n\nThis is a demo blog post that showcases how your voice content would be transformed into a well-structured article. The AI would analyze your speech patterns, extract key themes, and create engaging content optimized for blog readers.`,
+        formatted: true
+      },
+      {
+        platform: 'LinkedIn',
+        content: `LinkedIn Post:\n\n"${truncatedText}"\n\n💡 Key insights from today's thoughts:\n• Professional perspective\n• Industry relevance\n• Engaging discussion starter\n\nWhat are your thoughts on this? Share your experience below! 👇\n\n#ProfessionalDevelopment #IndustryInsights #Networking`,
+        formatted: true
+      },
+      {
+        platform: 'Twitter',
+        content: `Thread 🧵\n\n1/ "${truncatedText}"\n\n2/ This is how your voice content transforms into engaging Twitter threads\n\n3/ Each tweet optimized for maximum engagement and readability\n\n4/ Ready to share your insights with the world! 🚀\n\n#TwitterThread #ContentCreation #VoiceToText`,
+        formatted: true
+      },
+      {
+        platform: 'Podcast Script',
+        content: `🎙️ Podcast Script\n\nIntroduction:\n"Welcome to today's episode where we explore: ${truncatedText}"\n\nMain Content:\nYour voice content has been transformed into a structured podcast script with natural flow, engaging hooks, and clear transitions.\n\nConclusion:\n"Thanks for listening! Don't forget to subscribe and share this episode."`,
+        formatted: true
+      }
+    ];
   };
 
   const copyToClipboard = async (text: string) => {
@@ -166,114 +144,53 @@ export default function ContentProcessor({ originalText, languageSettings, onPro
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-        Content Processing
-      </h2>
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+      <div className="text-center">
+        <div className="mb-6">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">AI Content Generation</h2>
+          <p className="text-gray-600">Transforming your voice into professional content for all platforms</p>
+        </div>
 
-      {/* Original Input Display */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-3">Original Input:</h3>
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-gray-800">{originalText}</p>
+        {/* Progress Bar */}
+        <div className="mb-6">
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <div className="text-sm text-gray-600">{progress}% Complete</div>
+        </div>
+
+        {/* Current Step */}
+        <div className="mb-6">
+          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span className="font-medium">{currentStep}</span>
+          </div>
+        </div>
+
+        {/* Processing Animation */}
+        <div className="flex justify-center space-x-2 mb-6">
+          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+          <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        </div>
+
+        {/* Status Message */}
+        <div className="text-sm text-gray-500">
+          {progress < 100 ? (
+            <p>Please wait while AI processes your content...</p>
+          ) : (
+            <p className="text-green-600 font-medium">✅ Content generation successful!</p>
+          )}
         </div>
       </div>
-
-      {/* Processing Controls */}
-      {!processingState.isProcessing && generatedContent.length === 0 && (
-        <div className="text-center mb-6">
-          <button
-            onClick={processContent}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Generate Content
-          </button>
-        </div>
-      )}
-
-      {/* Processing Status */}
-      {processingState.isProcessing && (
-        <div className="mb-6">
-          <div className="text-center mb-4">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-800 rounded-full">
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="font-medium">Processing...</span>
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>{processingState.currentStep}</span>
-              <span>{Math.round(processingState.progress)}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${processingState.progress}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Error Display */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600">{error}</p>
-        </div>
-      )}
-
-      {/* Generated Content */}
-      {generatedContent.length > 0 && (
-        <div className="space-y-6">
-          <h3 className="text-xl font-semibold text-gray-800">Generated Content:</h3>
-          
-          {generatedContent.map((content, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                <h4 className="font-semibold text-gray-800 capitalize">
-                  {content.platform} Content
-                </h4>
-              </div>
-              <div className="p-4">
-                <div className="mb-3">
-                  <pre className="whitespace-pre-wrap text-gray-800 bg-gray-50 p-3 rounded border">
-                    {content.content}
-                  </pre>
-                </div>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => copyToClipboard(content.content)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                  >
-                    Copy
-                  </button>
-                  <button 
-                    onClick={() => downloadContent(content.content, content.platform)}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                  >
-                    Download
-                  </button>
-                  {content.platform === 'podcast' && (
-                    <button className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors">
-                      Play Audio
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Processing Complete Message */}
-      {processingState.progress === 100 && !processingState.isProcessing && (
-        <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-green-800 font-medium">
-            Content generation complete! You can now copy, download, or share your content.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
