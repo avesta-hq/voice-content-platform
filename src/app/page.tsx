@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import ContentDisplay from '@/components/ContentDisplay';
 import LoginForm from '@/components/LoginForm';
-import UserProfile from '@/components/UserProfile';
 import DocumentDashboard from '@/components/DocumentDashboard';
 import DocumentCreationForm from '@/components/DocumentCreationForm';
 import DocumentEditor from '@/components/DocumentEditor';
@@ -14,7 +13,7 @@ import { UserService } from '@/lib/userService';
 import { DocumentService } from '@/lib/documentService';
 
 export default function Home() {
-  const [currentStep, setCurrentStep] = useState<'login' | 'dashboard' | 'create-document' | 'edit-document' | 'recording' | 'processing' | 'complete' | 'profile'>('login');
+  const [currentStep, setCurrentStep] = useState<'login' | 'dashboard' | 'create-document' | 'edit-document' | 'recording' | 'processing' | 'complete'>('login');
   const [originalText, setOriginalText] = useState<string>('');
   const [generatedContent, setGeneratedContent] = useState<PlatformContent[]>([]);
   const [languageSettings, setLanguageSettings] = useState<LanguageSettings>({
@@ -174,10 +173,6 @@ export default function Home() {
     setCurrentDocumentId('');
   };
 
-  const showProfile = () => {
-    setCurrentStep('profile');
-  };
-
   if (!currentUser) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
@@ -211,17 +206,6 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <button
-              onClick={showProfile}
-              className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-            >
-              <img
-                src={currentUser.avatar}
-                alt={`${currentUser.firstName} ${currentUser.lastName}`}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-              <span className="text-gray-700 font-medium">Profile</span>
-            </button>
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -307,15 +291,7 @@ export default function Home() {
             <ContentDisplay 
               originalText={originalText}
               generatedContent={generatedContent}
-              onReset={resetToDashboard}
               onBackToDashboard={resetToDashboard}
-            />
-          )}
-
-          {currentStep === 'profile' && (
-            <UserProfile 
-              user={currentUser}
-              onLogout={handleLogout}
             />
           )}
         </div>

@@ -14,7 +14,6 @@ interface DocumentCreationFormProps {
 export default function DocumentCreationForm({ onDocumentCreated, onCancel }: DocumentCreationFormProps) {
   const [formData, setFormData] = useState<CreateDocumentData>({
     title: '',
-    description: '',
     inputLanguage: 'gu',
     outputLanguage: 'en'
   });
@@ -103,24 +102,6 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
           )}
           <p className="mt-1 text-xs text-gray-500">
             Choose a unique title that describes your content
-          </p>
-        </div>
-
-        {/* Description */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-            Description (Optional)
-          </label>
-          <textarea
-            id="description"
-            value={formData.description}
-            onChange={(e) => handleInputChange('description', e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Brief description of what this document will contain..."
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Optional: Add context about your document&apos;s purpose
           </p>
         </div>
 

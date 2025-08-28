@@ -6,11 +6,10 @@ import { PlatformContent } from '@/types';
 interface ContentDisplayProps {
   originalText: string;
   generatedContent: PlatformContent[];
-  onReset: () => void;
   onBackToDashboard: () => void;
 }
 
-export default function ContentDisplay({ originalText, generatedContent, onReset, onBackToDashboard }: ContentDisplayProps) {
+export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard }: ContentDisplayProps) {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);

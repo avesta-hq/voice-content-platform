@@ -68,7 +68,6 @@ export class DocumentService {
       const newDocument: Omit<UserDocument, 'id' | 'createdAt' | 'updatedAt' | 'sessions' | 'totalDuration' | 'wordCount'> = {
         userId,
         title: documentData.title,
-        description: documentData.description,
         inputLanguage: documentData.inputLanguage,
         outputLanguage: documentData.outputLanguage,
       };

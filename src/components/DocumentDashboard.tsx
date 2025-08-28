@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserDocument } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { UserService } from '@/lib/userService';
@@ -17,17 +17,24 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const hasLoadedRef = useRef(false);
 
-  useEffect(() => {
-    loadDocuments();
-  }, []);
-
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
+    // Prevent multiple API calls
+    if (hasLoadedRef.current) {
+      console.log('🚫 Documents already loaded, skipping API call');
+      return;
+    }
+    
     try {
+      console.log('🔄 Loading documents...'); // Debug log
+      hasLoadedRef.current = true;
       setIsLoading(true);
       const currentUser = UserService.getCurrentUser();
       if (currentUser) {
+        console.log('👤 Current user:', currentUser.id); // Debug log
         const userDocs = await DocumentService.getUserDocuments(currentUser.id);
+        console.log('📚 Documents loaded:', userDocs.length); // Debug log
         setDocuments(userDocs);
       }
     } catch (err) {
@@ -36,13 +43,41 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Function to manually refresh documents (for delete operations)
+  const refreshDocuments = useCallback(async () => {
+    try {
+      console.log('🔄 Refreshing documents...'); // Debug log
+      setIsLoading(true);
+      const currentUser = UserService.getCurrentUser();
+      if (currentUser) {
+        const userDocs = await DocumentService.getUserDocuments(currentUser.id);
+        console.log('📚 Documents refreshed:', userDocs.length); // Debug log
+        setDocuments(userDocs);
+      }
+    } catch (err) {
+      setError('Failed to refresh documents');
+      console.error('Refresh documents error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    console.log('🚀 DocumentDashboard useEffect triggered, hasLoadedRef.current:', hasLoadedRef.current);
+    loadDocuments();
+  }, [loadDocuments]);
 
   const handleDeleteDocument = async (documentId: string) => {
-    if (window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+    // Get document title for confirmation
+    const document = documents.find(doc => doc.id === documentId);
+    const documentTitle = document?.title || 'this document';
+    
+    if (window.confirm(`Are you sure you want to delete "${documentTitle}"?\n\nThis action will permanently remove the document and all its sessions. This cannot be undone.`)) {
       try {
         await DocumentService.deleteDocument(documentId);
-        await loadDocuments(); // Reload the list
+        await refreshDocuments(); // Use refresh instead of loadDocuments
       } catch (err) {
         setError('Failed to delete document');
         console.error('Delete document error:', err);
@@ -67,8 +102,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   };
 
   const filteredDocuments = documents.filter(doc =>
-    doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    doc.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    doc.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -99,23 +133,25 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
         </button>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search documents by title or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+      {/* Search - Only show when there are documents */}
+      {filteredDocuments.length > 0 && (
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search documents by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -148,19 +184,14 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
             const outputLang = getLanguageByCode(document.outputLanguage);
             
             return (
-              <div key={document.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200">
-                <div className="p-6">
+              <div key={document.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 flex flex-col h-full">
+                <div className="p-6 flex-1 flex flex-col">
                   {/* Document Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
                         {document.title}
                       </h3>
-                      {document.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                          {document.description}
-                        </p>
-                      )}
                     </div>
                     <div className="ml-3">
                       <button
@@ -206,8 +237,8 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                     Created: {formatDate(document.createdAt)}
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex space-x-2">
+                  {/* Action Buttons - Fixed at bottom */}
+                  <div className="mt-auto flex space-x-2">
                     <button
                       onClick={() => onEditDocument(document.id)}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"

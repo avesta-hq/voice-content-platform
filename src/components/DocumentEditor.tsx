@@ -123,9 +123,6 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
             <span>Back to Dashboard</span>
           </button>
           <h1 className="text-3xl font-bold text-gray-800">{document.title}</h1>
-          {document.description && (
-            <p className="text-gray-600 mt-2">{document.description}</p>
-          )}
         </div>
         <div className="flex space-x-3">
           <button

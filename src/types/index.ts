@@ -94,7 +94,6 @@ export interface UserDocument {
   id: string;
   userId: number;
   title: string;
-  description?: string;
   inputLanguage: string;
   outputLanguage: string;
   createdAt: string;
@@ -122,7 +121,6 @@ export interface DocumentWithSessions extends UserDocument {
 
 export interface CreateDocumentData {
   title: string;
-  description?: string;
   inputLanguage: string;
   outputLanguage: string;
 }
