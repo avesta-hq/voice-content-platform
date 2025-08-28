@@ -1,19 +1,60 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import ContentProcessor from '@/components/ContentProcessor';
 import ContentDisplay from '@/components/ContentDisplay';
-import { PlatformContent, LanguageSettings } from '@/types';
+import LoginForm from '@/components/LoginForm';
+import UserProfile from '@/components/UserProfile';
+import { PlatformContent, LanguageSettings, User } from '@/types';
+import { UserService } from '@/lib/userService';
 
 export default function Home() {
-  const [currentStep, setCurrentStep] = useState<'recording' | 'processing' | 'complete'>('recording');
+  const [currentStep, setCurrentStep] = useState<'login' | 'recording' | 'processing' | 'complete' | 'profile'>('login');
   const [originalText, setOriginalText] = useState<string>('');
   const [generatedContent, setGeneratedContent] = useState<PlatformContent[]>([]);
   const [languageSettings, setLanguageSettings] = useState<LanguageSettings>({
-    inputLanguage: 'gu', // Default to Gujarati
-    outputLanguage: 'en'  // Default to English
+    inputLanguage: 'gu',
+    outputLanguage: 'en'
   });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    if (UserService.isAuthenticated()) {
+      const user = UserService.getCurrentUser();
+      if (user) {
+        setCurrentUser(user);
+        setCurrentStep('recording');
+        // Set user's default language preferences
+        setLanguageSettings({
+          inputLanguage: user.preferences.defaultInputLanguage,
+          outputLanguage: user.preferences.defaultOutputLanguage
+        });
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = () => {
+    const user = UserService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+      setCurrentStep('recording');
+      // Set user's default language preferences
+      setLanguageSettings({
+        inputLanguage: user.preferences.defaultInputLanguage,
+        outputLanguage: user.preferences.defaultOutputLanguage
+      });
+    }
+  };
+
+  const handleLogout = () => {
+    UserService.logout();
+    setCurrentUser(null);
+    setCurrentStep('login');
+    setOriginalText('');
+    setGeneratedContent([]);
+  };
 
   const handleTranscriptComplete = (transcript: string) => {
     setOriginalText(transcript);
@@ -33,55 +74,100 @@ export default function Home() {
     setGeneratedContent([]);
   };
 
+  const showProfile = () => {
+    setCurrentStep('profile');
+  };
+
+  if (!currentUser) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-gray-800 mb-4">
+              Voice Content Platform
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Transform your voice into professional blog posts, social media content, and podcast scripts.
+              Your original message stays intact while we optimize it for different platforms.
+            </p>
+          </div>
+          <LoginForm onLoginSuccess={handleLoginSuccess} />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
       <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            Voice Content Platform
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Transform your voice into professional blog posts, social media content, and podcast scripts.
-            Your original message stays intact while we optimize it for different platforms.
-          </p>
+        {/* Header with User Info */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">
+              Voice Content Platform
+            </h1>
+            <p className="text-gray-600">
+              Welcome back, {currentUser.firstName}! 👋
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={showProfile}
+              className="flex items-center space-x-2 px-4 py-2 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            >
+              <img
+                src={currentUser.avatar}
+                alt={`${currentUser.firstName} ${currentUser.lastName}`}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <span className="text-gray-700 font-medium">Profile</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Progress Indicator */}
-        <div className="max-w-4xl mx-auto mb-8">
-          <div className="flex items-center justify-center space-x-4">
-            <div className={`flex items-center space-x-2 ${currentStep === 'recording' ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                currentStep === 'recording' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-              }`}>
-                1
+        {currentStep !== 'profile' && (
+          <div className="max-w-4xl mx-auto mb-8">
+            <div className="flex items-center justify-center space-x-4">
+              <div className={`flex items-center space-x-2 ${currentStep === 'recording' ? 'text-blue-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                  currentStep === 'recording' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                }`}>
+                  1
+                </div>
+                <span className="font-medium">Voice Input</span>
               </div>
-              <span className="font-medium">Voice Input</span>
-            </div>
-            
-            <div className={`w-16 h-0.5 ${currentStep === 'recording' ? 'bg-gray-300' : 'bg-blue-600'}`}></div>
-            
-            <div className={`flex items-center space-x-2 ${currentStep === 'processing' || currentStep === 'complete' ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                currentStep === 'processing' || currentStep === 'complete' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-              }`}>
-                2
+              
+              <div className={`w-16 h-0.5 ${currentStep === 'recording' ? 'bg-gray-300' : 'bg-blue-600'}`}></div>
+              
+              <div className={`flex items-center space-x-2 ${currentStep === 'processing' || currentStep === 'complete' ? 'text-blue-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                  currentStep === 'processing' || currentStep === 'complete' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                }`}>
+                  2
+                </div>
+                <span className="font-medium">Processing</span>
               </div>
-              <span className="font-medium">Processing</span>
-            </div>
-            
-            <div className={`w-16 h-0.5 ${currentStep === 'complete' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-            
-            <div className={`flex items-center space-x-2 ${currentStep === 'complete' ? 'text-blue-600' : 'text-gray-400'}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                currentStep === 'complete' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-              }`}>
-                3
+              
+              <div className={`w-16 h-0.5 ${currentStep === 'complete' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+              
+              <div className={`flex items-center space-x-2 ${currentStep === 'complete' ? 'text-blue-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                  currentStep === 'complete' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                }`}>
+                  3
+                </div>
+                <span className="font-medium">Content Ready</span>
               </div>
-              <span className="font-medium">Content Ready</span>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content */}
         <div className="space-y-8">
@@ -108,6 +194,13 @@ export default function Home() {
               onReset={resetToRecording}
             />
           )}
+
+          {currentStep === 'profile' && (
+            <UserProfile 
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          )}
         </div>
 
         {/* Footer */}
@@ -121,7 +214,7 @@ export default function Home() {
               Your OpenAI API key is configured and the system is ready for full AI-powered content generation.
             </p>
             <p className="text-green-600 text-xs mt-2">
-              ✨ <strong>Features:</strong> Multi-language support, voice recording, pause/resume, AI content generation for all platforms
+              ✨ <strong>Features:</strong> Multi-language support, voice recording, pause/resume, AI content generation for all platforms, User authentication system
             </p>
           </div>
         </div>

@@ -10,6 +10,9 @@ Transform your voice into professional content across multiple platforms while p
 - **🤖 AI-Powered Generation**: Creates content for LinkedIn, Twitter, blog posts, and podcast scripts
 - **📱 Responsive Design**: Works perfectly on all devices
 - **🔒 Content Preservation**: Your original speech input is never altered or enhanced
+- **👥 User Management**: Complete user authentication system with profiles and preferences
+- **💾 Content History**: Save and manage your generated content
+- **⚙️ User Preferences**: Customize default languages and theme settings
 
 ## 🚀 Tech Stack
 
@@ -100,6 +103,30 @@ All input languages can be selected as output languages, allowing for complete l
 1. Get your API key from [OpenAI Platform](https://platform.openai.com/)
 2. Add it to `.env.local`
 3. The system will automatically use it for content generation
+
+### User Management System
+The platform includes a complete user management system:
+
+#### **Demo Users (Pre-configured)**
+- **John Doe** (john.doe@example.com) - Default: English → English
+- **Sarah Wilson** (sarah.wilson@example.com) - Default: Gujarati → English  
+- **Mike Chen** (mike.chen@example.com) - Default: Hindi → English
+
+#### **User Features**
+- **Authentication**: Secure login/logout system
+- **Profiles**: User avatars, personal information, and preferences
+- **Preferences**: Customizable default languages and theme settings
+- **Content History**: Save and manage generated content
+- **Role System**: User roles and permissions (expandable)
+
+#### **Running the User System**
+```bash
+# Start JSON Server for user management
+npm run db
+
+# Start both Next.js and JSON Server
+npm run dev:full
+```
 
 ### Custom Language Support
 Add new languages by editing `src/lib/languages.ts`:

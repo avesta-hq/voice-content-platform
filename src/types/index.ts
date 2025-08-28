@@ -15,7 +15,7 @@ export interface ContentOutput {
 }
 
 export interface PlatformContent {
-  platform: 'blog' | 'linkedin' | 'twitter' | 'podcast';
+  platform: string;
   content: string;
   formatted: boolean;
 }
@@ -36,4 +36,55 @@ export interface AIProcessingState {
 export interface LanguageSettings {
   inputLanguage: string;
   outputLanguage: string;
+}
+
+// User Management Types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  avatar: string;
+  createdAt: string;
+  lastLogin: string;
+  isActive: boolean;
+  preferences: UserPreferences;
+}
+
+export interface UserPreferences {
+  defaultInputLanguage: string;
+  defaultOutputLanguage: string;
+  theme: 'light' | 'dark';
+}
+
+export interface UserSession {
+  id: string;
+  userId: number;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface UserContent {
+  id: string;
+  userId: number;
+  originalText: string;
+  generatedContent: PlatformContent[];
+  inputLanguage: string;
+  outputLanguage: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  token: string;
+  expiresAt: string;
 }
