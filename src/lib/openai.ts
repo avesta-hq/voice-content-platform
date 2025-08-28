@@ -20,32 +20,52 @@ export async function generateContent(request: ContentGenerationRequest): Promis
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
   
+  // Read prompts from environment variables
+  const blogPrompt = process.env.OPENAI_BLOG_PROMPT || 'Convert the following {inputLang} text into a well-structured blog post in {outputLang}. Maintain the original meaning and context exactly. Format it with proper paragraphs, headings, and structure. Original text: "{originalText}"';
+  const linkedinPrompt = process.env.OPENAI_LINKEDIN_PROMPT || 'Convert the following {inputLang} text into a professional LinkedIn post in {outputLang}. Keep it engaging and business-focused while preserving the original meaning exactly. Original text: "{originalText}"';
+  const twitterPrompt = process.env.OPENAI_TWITTER_PROMPT || 'Convert the following {inputLang} text into a Twitter post in {outputLang} (280 characters max). Make it engaging while preserving the original meaning exactly. Original text: "{originalText}"';
+  const podcastPrompt = process.env.OPENAI_PODCAST_PROMPT || 'Convert the following {inputLang} text into a podcast script in {outputLang}. Maintain natural speech flow while preserving the original meaning exactly. Add appropriate pauses and emphasis markers. Original text: "{originalText}"';
+  
   switch (platform) {
     case 'blog':
-      prompt = `Convert the following ${inputLangName} text into a well-structured blog post in ${outputLangName}. Maintain the original meaning and context exactly. Format it with proper paragraphs, headings, and structure. Original text: "${originalText}"`;
+      prompt = blogPrompt
+        .replace('{inputLang}', inputLangName)
+        .replace('{outputLang}', outputLangName)
+        .replace('{originalText}', originalText);
       maxTokens = 2000;
       break;
     case 'linkedin':
-      prompt = `Convert the following ${inputLangName} text into a professional LinkedIn post in ${outputLangName}. Keep it engaging and business-focused while preserving the original meaning exactly. Original text: "${originalText}"`;
+      prompt = linkedinPrompt
+        .replace('{inputLang}', inputLangName)
+        .replace('{outputLang}', outputLangName)
+        .replace('{originalText}', originalText);
       maxTokens = 1000;
       break;
     case 'twitter':
-      prompt = `Convert the following ${inputLangName} text into a Twitter post in ${outputLangName} (280 characters max). Make it engaging while preserving the original meaning exactly. Original text: "${originalText}"`;
+      prompt = twitterPrompt
+        .replace('{inputLang}', inputLangName)
+        .replace('{outputLang}', outputLangName)
+        .replace('{originalText}', originalText);
       maxTokens = 500;
       break;
     case 'podcast':
-      prompt = `Convert the following ${inputLangName} text into a podcast script in ${outputLangName}. Maintain natural speech flow while preserving the original meaning exactly. Add appropriate pauses and emphasis markers. Original text: "${originalText}"`;
+      prompt = podcastPrompt
+        .replace('{inputLang}', inputLangName)
+        .replace('{outputLang}', outputLangName)
+        .replace('{originalText}', originalText);
       maxTokens = 1500;
       break;
   }
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: process.env.OPENAI_MODEL_NAME || "gpt-4",
       messages: [
         {
           role: "system",
-          content: `You are a content transformation expert. Your job is to convert text from ${inputLangName} into ${outputLangName} while preserving the EXACT original meaning, context, and intent. Do not add new information, opinions, or interpretations. Only reformat and restructure the existing content. If the input and output languages are different, provide an accurate translation that maintains the original message.`
+          content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Your job is to convert text from {inputLang} into {outputLang} while preserving the EXACT original meaning, context, and intent. Do not add new information, opinions, or interpretations. Only reformat and restructure the existing content. If the input and output languages are different, provide an accurate translation that maintains the original message.')
+            .replace('{inputLang}', inputLangName)
+            .replace('{outputLang}', outputLangName)
         },
         {
           role: "user",
