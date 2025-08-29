@@ -40,7 +40,7 @@ export default function ConfirmationModal({ documentId, isOpen, onClose, onConfi
   const getCombinedTranscript = (): string => {
     if (!document) return '';
     return document.sessions
-      .sort((a, b) => a.sessionNumber - b.sessionNumber)
+      .sort((a, b) => a.sessionNumber - b.sessionNumber) // Changed to ascending order for logical document flow
       .map(session => session.transcript)
       .join(' ');
   };

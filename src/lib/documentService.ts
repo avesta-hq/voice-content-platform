@@ -1,9 +1,8 @@
 import { UserDocument, VoiceSession, DocumentWithSessions, CreateDocumentData } from '@/types';
 import { UserService } from './userService';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:3001';
+// Use environment variable for API base URL, fallback to /api for production
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 export class DocumentService {
   // Get all documents for a user
@@ -49,7 +48,7 @@ export class DocumentService {
       
       const sessions: VoiceSession[] = await sessionsResponse.json();
       
-      // Sort sessions by session number
+      // Sort sessions by session number (ascending order - logical document flow)
       const sortedSessions = sessions.sort((a, b) => a.sessionNumber - b.sessionNumber);
       
       return {
@@ -99,13 +98,10 @@ export class DocumentService {
   // Add a new session to a document
   static async addSession(documentId: string, sessionData: Omit<VoiceSession, 'id' | 'documentId' | 'timestamp'>): Promise<VoiceSession> {
     try {
-      // Get current document to determine next session number
-      const document = await this.getDocumentWithSessions(documentId);
-      const nextSessionNumber = document.sessions.length + 1;
-      
+      // Create the new session
       const newSession: Omit<VoiceSession, 'id' | 'timestamp'> = {
         documentId,
-        sessionNumber: nextSessionNumber,
+        sessionNumber: sessionData.sessionNumber,
         transcript: sessionData.transcript,
         duration: sessionData.duration,
         notes: sessionData.notes,
@@ -126,8 +122,8 @@ export class DocumentService {
       
       const createdSession = await response.json();
       
-      // Update document stats
-      await this.updateDocumentStats(documentId);
+      // Update document stats in a single operation
+      await this.updateDocumentStats(documentId, createdSession);
       
       return createdSession;
     } catch (error) {
@@ -137,28 +133,74 @@ export class DocumentService {
   }
 
   // Update document statistics (total duration and word count)
-  static async updateDocumentStats(documentId: string): Promise<void> {
+  static async updateDocumentStats(documentId: string, newSession?: VoiceSession): Promise<void> {
     try {
-      const document = await this.getDocumentWithSessions(documentId);
-      
-      const totalDuration = document.sessions.reduce((sum, session) => sum + session.duration, 0);
-      const wordCount = document.sessions.reduce((sum, session) => {
-        const words = session.transcript.trim().split(/\s+/).length;
-        return sum + words;
-      }, 0);
-      
-      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
-        method: 'PATCH',
-        headers: DocumentService.getAuthHeaders(),
-        body: JSON.stringify({
-          totalDuration,
-          wordCount,
-          updatedAt: new Date().toISOString()
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update document stats');
+      // If we have a new session, we can calculate stats more efficiently
+      if (newSession) {
+        // Get current document
+        const docResponse = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+          headers: DocumentService.getAuthHeaders(),
+        });
+        
+        if (!docResponse.ok) {
+          throw new Error('Failed to fetch document for stats update');
+        }
+        
+        // Get all sessions for this document
+        const sessionsResponse = await fetch(`${API_BASE_URL}/voiceSessions?documentId=${documentId}`, {
+          headers: DocumentService.getAuthHeaders(),
+        });
+        
+        if (!sessionsResponse.ok) {
+          throw new Error('Failed to fetch sessions for stats update');
+        }
+        
+        const sessions: VoiceSession[] = await sessionsResponse.json();
+        
+        // Calculate new stats
+        const totalDuration = sessions.reduce((sum, session) => sum + session.duration, 0);
+        const wordCount = sessions.reduce((sum, session) => {
+          const words = session.transcript.trim().split(/\s+/).length;
+          return sum + words;
+        }, 0);
+        
+        // Update document with new stats
+        const updateResponse = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+          method: 'PATCH',
+          headers: DocumentService.getAuthHeaders(),
+          body: JSON.stringify({
+            totalDuration,
+            wordCount,
+            updatedAt: new Date().toISOString()
+          }),
+        });
+        
+        if (!updateResponse.ok) {
+          throw new Error('Failed to update document stats');
+        }
+      } else {
+        // Fallback to the old method if no new session provided
+        const document = await this.getDocumentWithSessions(documentId);
+        
+        const totalDuration = document.sessions.reduce((sum, session) => sum + session.duration, 0);
+        const wordCount = document.sessions.reduce((sum, session) => {
+          const words = session.transcript.trim().split(/\s+/).length;
+          return sum + words;
+        }, 0);
+        
+        const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+          method: 'PATCH',
+          headers: DocumentService.getAuthHeaders(),
+          body: JSON.stringify({
+            totalDuration,
+            wordCount,
+            updatedAt: new Date().toISOString()
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update document stats');
+        }
       }
     } catch (error) {
       console.error('Update document stats error:', error);
@@ -227,7 +269,7 @@ export class DocumentService {
     try {
       const document = await this.getDocumentWithSessions(documentId);
       return document.sessions
-        .sort((a, b) => a.sessionNumber - b.sessionNumber)
+        .sort((a, b) => a.sessionNumber - b.sessionNumber) // Changed to ascending order for logical document flow
         .map(session => session.transcript)
         .join(' ');
     } catch (error) {

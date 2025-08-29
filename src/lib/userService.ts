@@ -1,8 +1,7 @@
 import { User, LoginCredentials, AuthResponse, UserPreferences, UserContent } from '@/types';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:3001';
+// Use environment variable for API base URL, fallback to /api for production
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 export class UserService {
   private static token: string | null = null;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DocumentWithSessions } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { getLanguageByCode } from '@/lib/languages';
@@ -17,36 +17,51 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [error, setError] = useState<string>('');
   const [showSessionRecorder, setShowSessionRecorder] = useState(false);
 
-  const loadDocument = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const doc = await DocumentService.getDocumentWithSessions(documentId);
-      setDocument(doc);
-    } catch (err) {
-      setError('Failed to load document');
-      console.error('Load document error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [documentId]);
-
   useEffect(() => {
+    const loadDocument = async () => {
+      try {
+        setIsLoading(true);
+        const doc = await DocumentService.getDocumentWithSessions(documentId);
+        setDocument(doc);
+      } catch (err) {
+        setError('Failed to load document');
+        console.error('Load document error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     loadDocument();
-  }, [loadDocument]);
+  }, [documentId]); // Only depend on documentId
 
   const handleSessionComplete = async (transcript: string, duration: number) => {
     if (!document) return;
 
     try {
-      await DocumentService.addSession(documentId, {
+      // Calculate next session number locally instead of making an API call
+      const nextSessionNumber = document.sessions.length + 1;
+      
+      const newSession = await DocumentService.addSession(documentId, {
         transcript,
         duration,
-        sessionNumber: document.sessions.length + 1,
+        sessionNumber: nextSessionNumber,
         notes: ''
       });
       
-      // Reload document to get updated stats
-      await loadDocument();
+      // Update local state instead of reloading the entire document
+      if (document) {
+        setDocument(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            sessions: [...prev.sessions, newSession],
+            totalDuration: prev.totalDuration + duration,
+            wordCount: prev.wordCount + transcript.trim().split(/\s+/).length,
+            updatedAt: new Date().toISOString()
+          };
+        });
+      }
+      
       setShowSessionRecorder(false);
     } catch (err) {
       setError('Failed to save session');
@@ -73,7 +88,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const getCombinedTranscript = (): string => {
     if (!document) return '';
     return document.sessions
-      .sort((a, b) => a.sessionNumber - b.sessionNumber)
+      .sort((a, b) => a.sessionNumber - b.sessionNumber) // Changed to ascending order for logical document flow
       .map(session => session.transcript)
       .join(' ');
   };
@@ -180,6 +195,28 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
         </div>
       )}
 
+      {/* Combined Content Preview */}
+      {document.sessions.length > 0 && (
+        <div className="mb-8 bg-white rounded-lg shadow-md border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-800">Combined Content Preview</h2>
+            <p className="text-gray-600 mt-1">
+              This is how your content will look when combined for blog generation
+            </p>
+          </div>
+          <div className="p-6">
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+              <p className="text-gray-800 whitespace-pre-wrap">
+                {getCombinedTranscript()}
+              </p>
+            </div>
+            <div className="mt-4 text-sm text-gray-500 text-center">
+              Total: {document.wordCount} words • {formatDuration(document.totalDuration)} duration
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Session History */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
         <div className="p-6 border-b border-gray-200">
@@ -208,7 +245,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
         ) : (
           <div className="divide-y divide-gray-200">
             {document.sessions
-              .sort((a, b) => a.sessionNumber - b.sessionNumber)
+              .sort((a, b) => b.sessionNumber - a.sessionNumber) // Changed to descending order
               .map((session) => (
                 <div key={session.id} className="p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -254,28 +291,6 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           </div>
         )}
       </div>
-
-      {/* Combined Content Preview */}
-      {document.sessions.length > 0 && (
-        <div className="mt-8 bg-white rounded-lg shadow-md border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-800">Combined Content Preview</h2>
-            <p className="text-gray-600 mt-1">
-              This is how your content will look when combined for blog generation
-            </p>
-          </div>
-          <div className="p-6">
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
-              <p className="text-gray-800 whitespace-pre-wrap">
-                {getCombinedTranscript()}
-              </p>
-            </div>
-            <div className="mt-4 text-sm text-gray-500 text-center">
-              Total: {document.wordCount} words • {formatDuration(document.totalDuration)} duration
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

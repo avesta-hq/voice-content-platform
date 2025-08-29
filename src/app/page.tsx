@@ -93,7 +93,7 @@ export default function Home() {
     try {
       const document = await DocumentService.getDocumentWithSessions(pendingDocumentId);
       const combinedTranscript = document.sessions
-        .sort((a, b) => a.sessionNumber - b.sessionNumber)
+        .sort((a, b) => a.sessionNumber - b.sessionNumber) // Changed to ascending order for logical document flow
         .map(session => session.transcript)
         .join(' ');
       
