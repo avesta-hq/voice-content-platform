@@ -1,0 +1,159 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "john_doe",
+      "email": "john.doe@example.com",
+      "firstName": "John",
+      "lastName": "Doe",
+      "role": "user",
+      "avatar": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+      "createdAt": "2024-01-15T10:00:00Z",
+      "lastLogin": "2024-01-20T14:30:00Z",
+      "isActive": true,
+      "preferences": {
+        "defaultInputLanguage": "en",
+        "defaultOutputLanguage": "en",
+        "theme": "light"
+      }
+    },
+    {
+      "id": 2,
+      "username": "sarah_wilson",
+      "email": "sarah.wilson@example.com",
+      "firstName": "Sarah",
+      "lastName": "Wilson",
+      "role": "user",
+      "avatar": "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+      "createdAt": "2024-01-10T09:00:00Z",
+      "lastLogin": "2024-01-19T16:45:00Z",
+      "isActive": true,
+      "preferences": {
+        "defaultInputLanguage": "gu",
+        "defaultOutputLanguage": "en",
+        "theme": "dark"
+      }
+    },
+    {
+      "id": 3,
+      "username": "mike_chen",
+      "email": "mike.chen@example.com",
+      "firstName": "Mike",
+      "lastName": "Chen",
+      "role": "user",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
+      "createdAt": "2024-01-05T11:00:00Z",
+      "lastLogin": "2024-01-18T12:20:00Z",
+      "isActive": true,
+      "preferences": {
+        "defaultInputLanguage": "hi",
+        "defaultOutputLanguage": "en",
+        "theme": "light"
+      }
+    }
+  ],
+  "sessions": [],
+  "userContent": [],
+  "userDocuments": [
+    {
+      "id": "doc_001",
+      "userId": 1,
+      "title": "AI and the Future of Technology",
+      "inputLanguage": "en",
+      "outputLanguage": "en",
+      "createdAt": "2024-01-20T10:00:00Z",
+      "updatedAt": "2024-01-20T10:00:00Z",
+      "sessions": [
+        "session_001"
+      ],
+      "totalDuration": 300,
+      "wordCount": 150
+    },
+    {
+      "id": "doc_002",
+      "userId": 2,
+      "title": "આધુનિક ટેકનોલોજી વિશે",
+      "inputLanguage": "gu",
+      "outputLanguage": "en",
+      "createdAt": "2024-01-19T14:00:00Z",
+      "updatedAt": "2024-01-19T14:00:00Z",
+      "sessions": [
+        "session_002"
+      ],
+      "totalDuration": 420,
+      "wordCount": 200
+    },
+    {
+      "id": "ce23",
+      "userId": 1,
+      "title": "Blog1",
+      "inputLanguage": "gu",
+      "outputLanguage": "en",
+      "createdAt": "2025-08-28T06:34:48.636Z",
+      "updatedAt": "2025-08-28T06:35:43.863Z",
+      "sessions": [],
+      "totalDuration": 22,
+      "wordCount": 29
+    },
+    {
+      "id": "e78e",
+      "userId": "1",
+      "title": "Blog 2",
+      "description": "",
+      "inputLanguage": "gu",
+      "outputLanguage": "en",
+      "createdAt": "2025-08-28T07:23:37.973Z",
+      "updatedAt": "2025-08-28T07:25:24.780Z",
+      "sessions": [],
+      "totalDuration": 27,
+      "wordCount": 17
+    }
+  ],
+  "voiceSessions": [
+    {
+      "id": "session_001",
+      "documentId": "doc_001",
+      "sessionNumber": 1,
+      "transcript": "Artificial intelligence is rapidly transforming the way we live and work. From virtual assistants to autonomous vehicles, AI technologies are becoming increasingly integrated into our daily lives. The potential for AI to revolutionize industries like healthcare, education, and transportation is enormous.",
+      "duration": 300,
+      "timestamp": "2024-01-20T10:00:00Z",
+      "notes": "Initial thoughts on AI impact"
+    },
+    {
+      "id": "session_002",
+      "documentId": "doc_002",
+      "sessionNumber": 1,
+      "transcript": "આજની ટેકનોલોજી ખૂબ જ ઝડપથી વિકાસ પામી રહી છે. આપણે જે રીતે જીવીએ છીએ અને કામ કરીએ છીએ તે બધું બદલી રહ્યું છે. કમ્પ્યુટર, મોબાઇલ, ઇન્ટરનેટ એ બધું આપણા જીવનનો એક અભિન્ન ભાગ બની ગયું છે.",
+      "duration": 420,
+      "timestamp": "2024-01-19T14:00:00Z",
+      "notes": "ટેકનોલોજી વિશે પ્રથમ વિચારો"
+    },
+    {
+      "id": "1350",
+      "documentId": "ce23",
+      "sessionNumber": 1,
+      "transcript": "હલો હલો હાવ આર યુ કેમ છો કેમ છો આજે આપણેહલો હલો હલો હલો હલો હલો હલો હલો હલો હલો",
+      "duration": 16,
+      "notes": "",
+      "timestamp": "2025-08-28T06:35:19.882Z"
+    },
+    {
+      "id": "301e",
+      "documentId": "ce23",
+      "sessionNumber": 2,
+      "transcript": "હાવ આર યુ કેમ છો કેમ છો કેમ છો",
+      "duration": 6,
+      "notes": "",
+      "timestamp": "2025-08-28T06:35:43.844Z"
+    },
+    {
+      "id": "dcbb",
+      "documentId": "e78e",
+      "sessionNumber": 1,
+      "transcript": "આજે આપણે ટીવ અને જવા સ્ક્રિપ્ટ વચ્ચેનો ડિફરન્સ સમજીશુંઆજે આપણે જવા સ્ક્રિપ્ટ અને ડોટ નેટનો ડીફરન્સ સમજીશું",
+      "duration": 27,
+      "notes": "",
+      "timestamp": "2025-08-28T07:25:24.758Z"
+    }
+  ]
+}
