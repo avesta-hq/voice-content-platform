@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hybridStorageService } from '@/lib/hybridStorageService';
+import { User } from '@/types';
 
 export async function GET() {
   try {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Generate new user ID (next available ID)
-    const nextId = Math.max(...db.users.map((user: any) => user.id), 0) + 1;
+    const nextId = Math.max(...db.users.map((user: User) => user.id), 0) + 1;
     
     const newUser = {
       id: nextId,

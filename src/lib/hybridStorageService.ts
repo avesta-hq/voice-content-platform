@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { s3Service, DatabaseData, User, UserDocument, VoiceSession } from './s3Service';
+import { s3Service, DatabaseData } from './s3Service';
+import { User, UserDocument, VoiceSession } from '@/types';
 
 export interface StorageService {
   getDatabase(): Promise<DatabaseData | null>;

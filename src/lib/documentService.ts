@@ -19,15 +19,16 @@ export class DocumentService {
   ): Promise<T> {
     try {
       return await operation();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check for various error conditions that indicate S3 eventual consistency
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const isRetryableError = 
-        error.message?.includes('404') || 
-        error.message?.includes('Failed to fetch document') ||
-        error.message?.includes('Failed to fetch document sessions') ||
-        error.message?.includes('Failed to fetch user documents') ||
-        error.message?.includes('Failed to fetch sessions for stats update') ||
-        error.message?.includes('Failed to fetch document for stats update');
+        errorMessage.includes('404') || 
+        errorMessage.includes('Failed to fetch document') ||
+        errorMessage.includes('Failed to fetch document sessions') ||
+        errorMessage.includes('Failed to fetch user documents') ||
+        errorMessage.includes('Failed to fetch sessions for stats update') ||
+        errorMessage.includes('Failed to fetch document for stats update');
       
       // Only retry on retryable errors and if we haven't exceeded max retries
       if (isRetryableError && retryCount < S3_RETRY_CONFIG.maxRetries) {
@@ -36,7 +37,7 @@ export class DocumentService {
           S3_RETRY_CONFIG.maxDelay
         );
         
-        console.log(`🔄 S3 eventual consistency retry ${retryCount + 1}/${S3_RETRY_CONFIG.maxRetries} in ${delay}ms for:`, error.message);
+        console.log(`🔄 S3 eventual consistency retry ${retryCount + 1}/${S3_RETRY_CONFIG.maxRetries} in ${delay}ms for:`, errorMessage);
         
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.retryWithBackoff(operation, retryCount + 1);
@@ -44,7 +45,7 @@ export class DocumentService {
       
       // Log the final error if we've exhausted retries
       if (retryCount >= S3_RETRY_CONFIG.maxRetries && isRetryableError) {
-        console.error(`❌ S3 retry exhausted after ${S3_RETRY_CONFIG.maxRetries} attempts:`, error.message);
+        console.error(`❌ S3 retry exhausted after ${S3_RETRY_CONFIG.maxRetries} attempts:`, errorMessage);
       }
       
       throw error;
@@ -120,6 +121,7 @@ export class DocumentService {
         title: documentData.title,
         inputLanguage: documentData.inputLanguage,
         outputLanguage: documentData.outputLanguage,
+        totalSessions: 0
       };
 
       const response = await fetch(`${API_BASE_URL}/userDocuments`, {
@@ -155,13 +157,14 @@ export class DocumentService {
           const fetchedDoc = await this.getDocumentWithSessions(createdDocument.id);
           console.log('✅ Document is now accessible in S3 after', attempts + 1, 'attempts');
           return createdDocument; // Return the created document
-        } catch (error: any) {
+        } catch (error: unknown) {
           attempts++;
           if (attempts >= maxAttempts) {
             console.warn('⚠️ Document created but not immediately accessible in S3. This is normal for cloud storage.');
             return createdDocument; // Return the document anyway
           }
           
+          const errorMessage = error instanceof Error ? error.message : String(error);
           const delay = baseDelay * Math.pow(2, attempts - 1);
           console.log(`⏳ Document not yet accessible, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -184,6 +187,7 @@ export class DocumentService {
           title: documentData.title,
           inputLanguage: documentData.inputLanguage,
           outputLanguage: documentData.outputLanguage,
+          totalSessions: 0
         };
 
         const response = await fetch(`${API_BASE_URL}/userDocuments`, {

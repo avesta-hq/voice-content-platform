@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hybridStorageService } from '@/lib/hybridStorageService';
+import { UserDocument } from '@/types';
 
 export async function GET(
   request: NextRequest,
@@ -11,11 +12,11 @@ export async function GET(
     // Get current database using hybrid storage
     const db = await hybridStorageService.getDatabase();
     
-    if (!db) {
+    if (!db || !db.userDocuments) {
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const document = (db.userDocuments || []).find((doc: any) => doc.id === id);
+    const document = (db.userDocuments || []).find((doc: UserDocument) => doc.id === id);
     
     if (!document) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -43,7 +44,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const documentIndex = db.userDocuments.findIndex((doc: any) => doc.id === id);
+    const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -80,7 +81,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const documentIndex = db.userDocuments.findIndex((doc: any) => doc.id === id);
+    const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -116,19 +117,19 @@ export async function DELETE(
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const documentIndex = db.userDocuments.findIndex((doc: any) => doc.id === id);
+    const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
     
     // Remove the document
-    const deletedDocument = db.userDocuments.splice(documentIndex, 1)[0];
+    db.userDocuments.splice(documentIndex, 1);
     
     // Save database using hybrid storage
     await hybridStorageService.saveDatabase(db);
     
-    return NextResponse.json({ message: 'Document deleted successfully', deletedDocument });
+    return NextResponse.json({ message: 'Document deleted successfully' });
   } catch (error) {
     console.error('Error deleting userDocument:', error);
     return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });

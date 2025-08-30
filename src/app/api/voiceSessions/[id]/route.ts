@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hybridStorageService } from '@/lib/hybridStorageService';
+import { VoiceSession } from '@/types';
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const session = db.voiceSessions.find((session: any) => session.id === id);
+    const session = (db.voiceSessions || []).find((session: VoiceSession) => session.id === id);
     
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -43,7 +44,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const sessionIndex = db.voiceSessions.findIndex((session: any) => session.id === id);
+    const sessionIndex = db.voiceSessions.findIndex((session: VoiceSession) => session.id === id);
     
     if (sessionIndex === -1) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -79,19 +80,19 @@ export async function DELETE(
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
-    const sessionIndex = db.voiceSessions.findIndex((session: any) => session.id === id);
+    const sessionIndex = db.voiceSessions.findIndex((session: VoiceSession) => session.id === id);
     
     if (sessionIndex === -1) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
     
     // Remove the session
-    const deletedSession = db.voiceSessions.splice(sessionIndex, 1)[0];
+    db.voiceSessions.splice(sessionIndex, 1);
     
     // Save database using hybrid storage
     await hybridStorageService.saveDatabase(db);
     
-    return NextResponse.json({ message: 'Session deleted successfully', deletedSession });
+    return NextResponse.json({ message: 'Session deleted successfully' });
   } catch (error) {
     console.error('Error deleting voiceSession:', error);
     return NextResponse.json({ error: 'Failed to delete session' }, { status: 500 });
