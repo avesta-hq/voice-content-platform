@@ -53,7 +53,12 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
       }
 
       // Create document
-      const newDocument = await DocumentService.createDocument(currentUser.id, formData);
+      const newDocument = await DocumentService.createDocumentWithAccess(currentUser.id, formData);
+      
+      // Add a small delay to ensure S3 consistency before navigation
+      console.log('⏳ Waiting for S3 consistency before navigation...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       onDocumentCreated(newDocument.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create document');

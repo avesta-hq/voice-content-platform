@@ -15,6 +15,15 @@ frontend:
         - env | grep -e OPENAI_TWITTER_PROMPT >> .env.production
         - env | grep -e OPENAI_PODCAST_PROMPT >> .env.production
         - env | grep -e OPENAI_SYSTEM_INSTRUCTION >> .env.production
+        # AWS S3 Configuration
+        - env | grep -e AWS_ACCESS_KEY_ID >> .env.production
+        - env | grep -e AWS_SECRET_ACCESS_KEY >> .env.production
+        - env | grep -e AWS_REGION >> .env.production
+        - env | grep -e S3_BUCKET_NAME >> .env.production
+        - env | grep -e USE_S3_LOCAL >> .env.production
+        - env | grep -e NODE_ENV >> .env.production
+        # API Configuration
+        - env | grep -e NEXT_PUBLIC_API_BASE_URL >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

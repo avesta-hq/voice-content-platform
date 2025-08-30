@@ -66,8 +66,11 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
 
   useEffect(() => {
     console.log('🚀 DocumentDashboard useEffect triggered, hasLoadedRef.current:', hasLoadedRef.current);
-    loadDocuments();
-  }, [loadDocuments]);
+    // Only load documents once when component mounts
+    if (!hasLoadedRef.current) {
+      loadDocuments();
+    }
+  }, []); // Remove loadDocuments dependency to prevent infinite loops
 
   const handleDeleteDocument = async (documentId: string) => {
     // Get document title for confirmation
@@ -210,31 +213,31 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                   <div className="mb-4">
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
                       <span>🌍</span>
-                      <span>{inputLang?.nativeName || inputLang?.name}</span>
+                      <span>{getLanguageByCode(document.inputLanguage || 'en')?.nativeName || getLanguageByCode(document.inputLanguage || 'en')?.name || 'Unknown'}</span>
                       <span>→</span>
-                      <span>{outputLang?.nativeName || outputLang?.name}</span>
+                      <span>{getLanguageByCode(document.outputLanguage || 'en')?.nativeName || getLanguageByCode(document.outputLanguage || 'en')?.name || 'Unknown'}</span>
                     </div>
                   </div>
 
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
                     <div className="text-center">
-                      <div className="font-semibold text-gray-800">{document.sessions.length}</div>
+                      <div className="font-semibold text-gray-800">{document.sessions?.length || 0}</div>
                       <div className="text-gray-500">Sessions</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-gray-800">{formatDuration(document.totalDuration)}</div>
+                      <div className="font-semibold text-gray-800">{formatDuration(document.totalDuration || 0)}</div>
                       <div className="text-gray-500">Duration</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold text-gray-800">{document.wordCount}</div>
+                      <div className="font-semibold text-gray-800">{document.wordCount || 0}</div>
                       <div className="text-gray-500">Words</div>
                     </div>
                   </div>
 
                   {/* Date Info */}
                   <div className="text-xs text-gray-500 mb-4">
-                    Created: {formatDate(document.createdAt)}
+                    Created: {formatDate(document.createdAt || new Date().toISOString())}
                   </div>
 
                   {/* Action Buttons - Fixed at bottom */}

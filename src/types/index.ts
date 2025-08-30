@@ -102,6 +102,7 @@ export interface UserDocument {
   // Content Management
   sessions: string[] | VoiceSession[]; // Can be either session IDs or full session objects
   totalDuration: number;
+  totalSessions: number;
   wordCount: number;
 }
 

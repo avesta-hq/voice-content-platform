@@ -167,6 +167,22 @@ export class UserService {
     }
   }
 
+  // Get all users (public, no auth required - for login form)
+  static async getUsers(): Promise<User[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Get users error:', error);
+      throw error;
+    }
+  }
+
   // Create new user (for registration)
   static async createUser(userData: Omit<User, 'id' | 'createdAt' | 'lastLogin'>): Promise<User> {
     try {

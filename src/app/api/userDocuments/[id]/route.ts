@@ -1,28 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-interface UserDocument {
-  id: string;
-  userId: number;
-  title: string;
-  inputLanguage: string;
-  outputLanguage: string;
-  createdAt: string;
-  updatedAt: string;
-  sessions: string[];
-  totalDuration: number;
-  wordCount: number;
-}
-
-interface VoiceSession {
-  id: string;
-  documentId: string;
-  sessionNumber: number;
-  transcript: string;
-  duration: number;
-  timestamp: string;
-}
+import { hybridStorageService } from '@/lib/hybridStorageService';
 
 export async function GET(
   request: NextRequest,
@@ -30,11 +7,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
     
-    const document = (db.userDocuments || []).find((doc: UserDocument) => doc.id === id);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
+    
+    if (!db) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const document = (db.userDocuments || []).find((doc: any) => doc.id === id);
     
     if (!document) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -55,11 +36,14 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
     
-    const documentIndex = (db.userDocuments || []).findIndex((doc: UserDocument) => doc.id === id);
+    if (!db || !db.userDocuments) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const documentIndex = db.userDocuments.findIndex((doc: any) => doc.id === id);
     
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -71,7 +55,8 @@ export async function PUT(
       updatedAt: new Date().toISOString()
     };
     
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
+    // Save database using hybrid storage
+    await hybridStorageService.saveDatabase(db);
     
     return NextResponse.json(db.userDocuments[documentIndex]);
   } catch (error) {
@@ -88,11 +73,14 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
     
-    const documentIndex = (db.userDocuments || []).findIndex((doc: UserDocument) => doc.id === id);
+    if (!db || !db.userDocuments) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const documentIndex = db.userDocuments.findIndex((doc: any) => doc.id === id);
     
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -104,12 +92,13 @@ export async function PATCH(
       updatedAt: new Date().toISOString()
     };
     
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
+    // Save database using hybrid storage
+    await hybridStorageService.saveDatabase(db);
     
     return NextResponse.json(db.userDocuments[documentIndex]);
   } catch (error) {
-    console.error('Error patching userDocument:', error);
-    return NextResponse.json({ error: 'Failed to patch document' }, { status: 500 });
+    console.error('Error updating userDocument:', error);
+    return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
   }
 }
 
@@ -119,25 +108,27 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
     
-    const documentIndex = (db.userDocuments || []).findIndex((doc: UserDocument) => doc.id === id);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
+    
+    if (!db || !db.userDocuments) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const documentIndex = db.userDocuments.findIndex((doc: any) => doc.id === id);
     
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
     
     // Remove the document
-    db.userDocuments.splice(documentIndex, 1);
+    const deletedDocument = db.userDocuments.splice(documentIndex, 1)[0];
     
-    // Also remove related voice sessions
-    db.voiceSessions = (db.voiceSessions || []).filter((session: VoiceSession) => session.documentId !== id);
+    // Save database using hybrid storage
+    await hybridStorageService.saveDatabase(db);
     
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
-    
-    return NextResponse.json({ message: 'Document deleted successfully' });
+    return NextResponse.json({ message: 'Document deleted successfully', deletedDocument });
   } catch (error) {
     console.error('Error deleting userDocument:', error);
     return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });

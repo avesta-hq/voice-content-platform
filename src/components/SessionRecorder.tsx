@@ -14,7 +14,7 @@ interface SessionRecorderProps {
 export default function SessionRecorder({ inputLanguage, onSessionComplete, onCancel }: SessionRecorderProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>({
     isRecording: false,
-    isPaused: false,
+    isPaused: false, // Keep this for now but won't be used
     transcript: '',
     duration: 0
   });
@@ -31,7 +31,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
   }, []);
 
   useEffect(() => {
-    if (recordingState.isRecording && !recordingState.isPaused) {
+    if (recordingState.isRecording /* && !recordingState.isPaused */) {
       intervalRef.current = setInterval(() => {
         setRecordingState(prev => ({ ...prev, duration: prev.duration + 1 }));
       }, 1000);
@@ -44,7 +44,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
         clearInterval(intervalRef.current);
       }
     };
-  }, [recordingState.isRecording, recordingState.isPaused]);
+  }, [recordingState.isRecording /* , recordingState.isPaused */]);
 
   const startRecording = () => {
     if (!speechManager.current) return;
@@ -92,6 +92,8 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
     );
   };
 
+  // Pause feature commented out for now
+  /*
   const pauseRecording = () => {
     if (!speechManager.current) return;
 
@@ -107,6 +109,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
     speechManager.current.resumeRecording();
     setRecordingState(prev => ({ ...prev, isPaused: false }));
   };
+  */
 
   const stopRecording = () => {
     if (!speechManager.current) return;
@@ -174,6 +177,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
           </button>
         ) : (
           <>
+            {/* Pause feature commented out for now
             {recordingState.isPaused ? (
               <button
                 onClick={resumeRecording}
@@ -189,6 +193,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
                 Pause
               </button>
             )}
+            */}
             <button
               onClick={stopRecording}
               className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -203,21 +208,24 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
       {recordingState.isRecording && (
         <div className="text-center mb-6">
           <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
-            recordingState.isPaused 
-              ? 'bg-yellow-100 text-yellow-800' 
-              : 'bg-red-100 text-red-800'
+            // recordingState.isPaused 
+            //   ? 'bg-yellow-100 text-yellow-800' 
+            //   : 'bg-red-100 text-red-800'
+            'bg-red-100 text-red-800'
           }`}>
             <div className={`w-3 h-3 rounded-full ${
-              recordingState.isPaused 
-                ? 'bg-yellow-500' 
-                : 'bg-red-500 animate-pulse'
+              // recordingState.isPaused 
+              //   ? 'bg-yellow-500' 
+              //   : 'bg-red-500 animate-pulse'
+              'bg-red-500 animate-pulse'
             }`}></div>
             <span className="font-medium">
-              {recordingState.isPaused ? 'Paused - Your input is preserved' : 'Recording'} - {formatTime(recordingState.duration)}
+              {/* {recordingState.isPaused ? 'Paused - Your input is preserved' : 'Recording'} - {formatTime(recordingState.duration)} */}
+              Recording - {formatTime(recordingState.duration)}
             </span>
           </div>
           
-          {/* Pause State Message */}
+          {/* Pause State Message - commented out
           {recordingState.isPaused && (
             <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-yellow-700 text-sm">
@@ -225,6 +233,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
               </p>
             </div>
           )}
+          */}
         </div>
       )}
 
@@ -281,7 +290,9 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
         <h4 className="font-semibold text-blue-800 mb-2">Instructions:</h4>
         <ul className="text-sm text-blue-700 space-y-1">
           <li>• Click &quot;Start Recording&quot; to begin your session</li>
+          {/* Pause feature commented out
           <li>• Use &quot;Pause&quot; to take breaks while thinking - your input is preserved</li>
+          */}
           <li>• Click &quot;Stop&quot; when you&apos;re finished with this session</li>
           <li>• Add optional notes to provide context for this session</li>
           <li>• Click &quot;Save Session&quot; to add this content to your document</li>

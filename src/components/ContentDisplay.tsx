@@ -188,14 +188,14 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                       <span>Download</span>
                     </button>
                     
-                    {content.platform === 'Podcast Script' && (
+                    {/* content.platform === 'Podcast Script' && (
                       <button className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span>Play Audio</span>
                       </button>
-                    )}
+                    ) */}
                   </div>
                 </div>
               </div>
@@ -205,7 +205,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       </div>
 
       {/* Success Message */}
-      <div className="text-center p-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl mt-12 shadow-lg">
+     {/*  <div className="text-center p-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl mt-12 shadow-lg">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full mb-4">
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -215,7 +215,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         <p className="text-green-700 text-lg leading-relaxed">
           Your content is ready! Copy, download, or share it across your preferred platforms.
         </p>
-      </div>
+      </div> */}
 
       {/* Action Buttons */}
       <div className="flex justify-center mt-8 mb-12">

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserService } from '@/lib/userService';
-import { LoginCredentials } from '@/types';
+import { LoginCredentials, User } from '@/types';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -15,6 +15,77 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [demoUsers, setDemoUsers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+  useEffect(() => {
+    const fetchDemoUsers = async () => {
+      try {
+        const users = await UserService.getUsers();
+        setDemoUsers(users);
+      } catch (err) {
+        console.error('Failed to fetch demo users:', err);
+        // Fallback to hardcoded users if API fails
+        setDemoUsers([
+          {
+            id: 1,
+            username: 'john_doe',
+            email: 'john.doe@example.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            role: 'user',
+            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            lastLogin: '2024-01-01T00:00:00.000Z',
+            isActive: true,
+            preferences: {
+              defaultInputLanguage: 'en',
+              defaultOutputLanguage: 'en',
+              theme: 'light'
+            }
+          },
+          {
+            id: 2,
+            username: 'sarah_wilson',
+            email: 'sarah.wilson@example.com',
+            firstName: 'Sarah',
+            lastName: 'Wilson',
+            role: 'user',
+            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            lastLogin: '2024-01-01T00:00:00.000Z',
+            isActive: true,
+            preferences: {
+              defaultInputLanguage: 'en',
+              defaultOutputLanguage: 'en',
+              theme: 'light'
+            }
+          },
+          {
+            id: 3,
+            username: 'mike_chen',
+            email: 'mike.chen@example.com',
+            firstName: 'Mike',
+            lastName: 'Chen',
+            role: 'user',
+            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            lastLogin: '2024-01-01T00:00:00.000Z',
+            isActive: true,
+            preferences: {
+              defaultInputLanguage: 'en',
+              defaultOutputLanguage: 'en',
+              theme: 'light'
+            }
+          }
+        ]);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchDemoUsers();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,35 +180,30 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
       {/* Demo Users Section */}
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-        <h3 className="font-semibold text-blue-800 mb-3">Demo Users (Click to Login)</h3>
-        <div className="space-y-2">
-          <button
-            onClick={() => handleDemoLogin('john.doe@example.com')}
-            disabled={isLoading}
-            className="w-full text-left p-2 bg-white border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-          >
-            <div className="font-medium text-blue-700">John Doe</div>
-            <div className="text-sm text-blue-600">john.doe@example.com</div>
-          </button>
-          
-          <button
-            onClick={() => handleDemoLogin('sarah.wilson@example.com')}
-            disabled={isLoading}
-            className="w-full text-left p-2 bg-white border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-          >
-            <div className="font-medium text-blue-700">Sarah Wilson</div>
-            <div className="text-sm text-blue-600">sarah.wilson@example.com</div>
-          </button>
-          
-          <button
-            onClick={() => handleDemoLogin('mike.chen@example.com')}
-            disabled={isLoading}
-            className="w-full text-left p-2 bg-white border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-          >
-            <div className="font-medium text-blue-700">Mike Chen</div>
-            <div className="text-sm text-blue-600">mike.chen@example.com</div>
-          </button>
-        </div>
+        <h3 className="font-semibold text-blue-800 mb-3">
+          Demo Users ({demoUsers.length}) - Click to Login
+        </h3>
+        {isLoadingUsers ? (
+          <div className="text-center py-4">
+            <div className="text-blue-600">Loading users...</div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {demoUsers.map((user) => (
+              <button
+                key={user.id}
+                onClick={() => handleDemoLogin(user.email)}
+                disabled={isLoading}
+                className="w-full text-left p-2 bg-white border border-blue-200 rounded hover:bg-blue-100 transition-colors"
+              >
+                <div className="font-medium text-blue-700">
+                  {user.firstName} {user.lastName}
+                </div>
+                <div className="text-sm text-blue-600">{user.email}</div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 text-center text-sm text-gray-500">

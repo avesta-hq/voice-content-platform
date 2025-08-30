@@ -1,35 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-interface UserDocument {
-  id: string;
-  userId: number;
-  title: string;
-  inputLanguage: string;
-  outputLanguage: string;
-  createdAt: string;
-  updatedAt: string;
-  sessions: string[];
-  totalDuration: number;
-  wordCount: number;
-}
+import { hybridStorageService } from '@/lib/hybridStorageService';
+import { UserDocument } from '@/types';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
-    
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
-    
-    if (userId) {
-      const userDocuments = (db.userDocuments || []).filter((doc: UserDocument) => doc.userId === parseInt(userId));
-      return NextResponse.json(userDocuments);
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId parameter is required' }, { status: 400 });
     }
-    
-    return NextResponse.json(db.userDocuments || []);
+
+    const userDocuments = await hybridStorageService.getUserDocuments(userId);
+    return NextResponse.json(userDocuments);
   } catch (error) {
     console.error('Error reading userDocuments:', error);
     return NextResponse.json({ error: 'Failed to fetch user documents' }, { status: 500 });
@@ -40,23 +23,43 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
+    // Get current database
+    const db = await hybridStorageService.getDatabase() || { userDocuments: [] };
     
-    const newDocument = {
+    // Check for duplicate title per user
+    const existingDoc = db.userDocuments?.find((doc: UserDocument) => 
+      String(doc.userId) === String(body.userId) && doc.title.toLowerCase() === body.title.toLowerCase()
+    );
+
+    if (existingDoc) {
+      return NextResponse.json({ error: 'Document with this title already exists for this user' }, { status: 400 });
+    }
+
+    const newDocument: UserDocument = {
       id: Date.now().toString(),
-      ...body
+      userId: body.userId, // Keep as number
+      title: body.title,
+      inputLanguage: body.inputLanguage || 'en',
+      outputLanguage: body.outputLanguage || 'en',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      totalDuration: 0,
+      totalSessions: 0,
+      wordCount: 0,
+      sessions: [] // Ensure sessions array is always present
     };
-    
+
+    // Add to database
     db.userDocuments = db.userDocuments || [];
     db.userDocuments.push(newDocument);
-    
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
-    
+
+    // Save database
+    await hybridStorageService.saveDatabase(db);
+
     return NextResponse.json(newDocument, { status: 201 });
+
   } catch (error) {
     console.error('Error creating userDocument:', error);
-    return NextResponse.json({ error: 'Failed to create document' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create user document' }, { status: 500 });
   }
 }

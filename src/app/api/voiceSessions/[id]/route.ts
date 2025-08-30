@@ -1,15 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-interface VoiceSession {
-  id: string;
-  documentId: string;
-  sessionNumber: number;
-  transcript: string;
-  duration: number;
-  timestamp: string;
-}
+import { hybridStorageService } from '@/lib/hybridStorageService';
 
 export async function GET(
   request: NextRequest,
@@ -17,11 +7,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
     
-    const session = (db.voiceSessions || []).find((session: VoiceSession) => session.id === id);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
+    
+    if (!db || !db.voiceSessions) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const session = db.voiceSessions.find((session: any) => session.id === id);
     
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -42,11 +36,14 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
     
-    const sessionIndex = (db.voiceSessions || []).findIndex((session: VoiceSession) => session.id === id);
+    if (!db || !db.voiceSessions) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const sessionIndex = db.voiceSessions.findIndex((session: any) => session.id === id);
     
     if (sessionIndex === -1) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -58,7 +55,8 @@ export async function PUT(
       timestamp: new Date().toISOString()
     };
     
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
+    // Save database using hybrid storage
+    await hybridStorageService.saveDatabase(db);
     
     return NextResponse.json(db.voiceSessions[sessionIndex]);
   } catch (error) {
@@ -73,21 +71,27 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const dbPath = path.join(process.cwd(), 'db.json');
-    const dbContent = await fs.readFile(dbPath, 'utf-8');
-    const db = JSON.parse(dbContent);
     
-    const sessionIndex = (db.voiceSessions || []).findIndex((session: VoiceSession) => session.id === id);
+    // Get current database using hybrid storage
+    const db = await hybridStorageService.getDatabase();
+    
+    if (!db || !db.voiceSessions) {
+      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    }
+    
+    const sessionIndex = db.voiceSessions.findIndex((session: any) => session.id === id);
     
     if (sessionIndex === -1) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
     
-    db.voiceSessions.splice(sessionIndex, 1);
+    // Remove the session
+    const deletedSession = db.voiceSessions.splice(sessionIndex, 1)[0];
     
-    await fs.writeFile(dbPath, JSON.stringify(db, null, 2));
+    // Save database using hybrid storage
+    await hybridStorageService.saveDatabase(db);
     
-    return NextResponse.json({ message: 'Session deleted successfully' });
+    return NextResponse.json({ message: 'Session deleted successfully', deletedSession });
   } catch (error) {
     console.error('Error deleting voiceSession:', error);
     return NextResponse.json({ error: 'Failed to delete session' }, { status: 500 });

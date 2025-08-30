@@ -310,7 +310,7 @@ export default function Home() {
           <p>Powered by OpenAI • Built with Next.js & Tailwind CSS</p>
           
           {/* System Status */}
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg max-w-2xl mx-auto">
+          {/* <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg max-w-2xl mx-auto">
             <h4 className="font-semibold text-green-800 mb-2">🎉 System Fully Operational!</h4>
             <p className="text-green-700 text-sm">
               Your OpenAI API key is configured and the system is ready for full AI-powered content generation.
@@ -318,7 +318,7 @@ export default function Home() {
             <p className="text-green-600 text-xs mt-2">
               ✨ <strong>Features:</strong> Multi-language support, voice recording, pause/resume, AI content generation for all platforms, User authentication system, Multi-session document management
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
     </main>

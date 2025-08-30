@@ -21,10 +21,12 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
     const loadDocument = async () => {
       try {
         setIsLoading(true);
+        setError(''); // Clear any previous errors
         const doc = await DocumentService.getDocumentWithSessions(documentId);
         setDocument(doc);
       } catch (err) {
-        setError('Failed to load document');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load document';
+        setError(`Failed to load document: ${errorMessage}. This might be due to S3 eventual consistency. Please try refreshing.`);
         console.error('Load document error:', err);
       } finally {
         setIsLoading(false);
@@ -108,13 +110,21 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
     return (
       <div className="max-w-6xl mx-auto p-6">
         <div className="text-center py-12">
-          <p className="text-red-600">Document not found</p>
-          <button
-            onClick={onBackToDashboard}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Back to Dashboard
-          </button>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Retry Loading
+            </button>
+            <button
+              onClick={onBackToDashboard}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            >
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
