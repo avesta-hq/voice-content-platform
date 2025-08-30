@@ -22,8 +22,6 @@ frontend:
         - env | grep -e S3_BUCKET_NAME >> .env.production
         - env | grep -e USE_S3_LOCAL >> .env.production
         - env | grep -e NODE_ENV >> .env.production
-        # API Configuration
-        - env | grep -e NEXT_PUBLIC_API_BASE_URL >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next
