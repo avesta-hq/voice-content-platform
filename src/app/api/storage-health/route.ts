@@ -12,10 +12,10 @@ export async function GET() {
       environment: {
         NODE_ENV: process.env.NODE_ENV,
         USE_S3_LOCAL: process.env.USE_S3_LOCAL,
-        AWS_REGION: process.env.AWS_REGION ? 'SET' : 'NOT SET',
+        S3_REGION: process.env.S3_REGION ? 'SET' : 'NOT SET',
         S3_BUCKET_NAME: process.env.S3_BUCKET_NAME ? 'SET' : 'NOT SET',
-        AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'NOT SET',
-        AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'NOT SET'
+        S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID ? 'SET' : 'NOT SET',
+        S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY ? 'SET' : 'NOT SET'
       }
     });
   } catch (error) {

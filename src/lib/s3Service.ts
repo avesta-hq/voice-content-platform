@@ -26,10 +26,10 @@ export class S3Service {
     
     if (this.isConfigured) {
       this.client = new S3Client({
-        region: process.env.AWS_REGION,
+        region: process.env.S3_REGION,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+          accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
         },
       });
       this.bucketName = process.env.S3_BUCKET_NAME!;
@@ -38,9 +38,9 @@ export class S3Service {
 
   private validateConfiguration(): boolean {
     const requiredVars = [
-      'AWS_ACCESS_KEY_ID',
-      'AWS_SECRET_ACCESS_KEY', 
-      'AWS_REGION',
+      'S3_ACCESS_KEY_ID',
+      'S3_SECRET_ACCESS_KEY', 
+      'S3_REGION',
       'S3_BUCKET_NAME'
     ];
 
