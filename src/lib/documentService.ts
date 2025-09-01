@@ -281,6 +281,7 @@ export class DocumentService {
           const sessions: VoiceSession[] = await sessionsResponse.json();
           
           // Calculate new stats
+          const totalSessions = sessions.length;
           const totalDuration = sessions.reduce((sum, session) => sum + session.duration, 0);
           const wordCount = sessions.reduce((sum, session) => {
             const words = session.transcript.trim().split(/\s+/).length;
@@ -292,6 +293,7 @@ export class DocumentService {
             method: 'PATCH',
             headers: DocumentService.getAuthHeaders(),
             body: JSON.stringify({
+              totalSessions,
               totalDuration,
               wordCount,
               updatedAt: new Date().toISOString()
@@ -310,11 +312,13 @@ export class DocumentService {
             const words = session.transcript.trim().split(/\s+/).length;
             return sum + words;
           }, 0);
+          const totalSessions = document.sessions.length;
           
           const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
             method: 'PATCH',
             headers: DocumentService.getAuthHeaders(),
             body: JSON.stringify({
+              totalSessions,
               totalDuration,
               wordCount,
               updatedAt: new Date().toISOString()

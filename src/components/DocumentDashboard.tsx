@@ -35,7 +35,21 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
         console.log('👤 Current user:', currentUser.id); // Debug log
         const userDocs = await DocumentService.getUserDocuments(currentUser.id);
         console.log('📚 Documents loaded:', userDocs.length); // Debug log
-        setDocuments(userDocs);
+
+        // Enrich with accurate session counts
+        const enrichedDocs = await Promise.all(
+          userDocs.map(async (doc) => {
+            try {
+              const full = await DocumentService.getDocumentWithSessions(doc.id);
+              return { ...doc, totalSessions: full.sessions.length };
+            } catch (e) {
+              console.warn('Failed to load sessions for doc', doc.id, e);
+              return doc;
+            }
+          })
+        );
+
+        setDocuments(enrichedDocs);
       }
     } catch (err) {
       setError('Failed to load documents');
@@ -54,7 +68,20 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
       if (currentUser) {
         const userDocs = await DocumentService.getUserDocuments(currentUser.id);
         console.log('📚 Documents refreshed:', userDocs.length); // Debug log
-        setDocuments(userDocs);
+
+        const enrichedDocs = await Promise.all(
+          userDocs.map(async (doc) => {
+            try {
+              const full = await DocumentService.getDocumentWithSessions(doc.id);
+              return { ...doc, totalSessions: full.sessions.length };
+            } catch (e) {
+              console.warn('Failed to load sessions for doc', doc.id, e);
+              return doc;
+            }
+          })
+        );
+
+        setDocuments(enrichedDocs);
       }
     } catch (err) {
       setError('Failed to refresh documents');
@@ -222,7 +249,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
                     <div className="text-center">
-                      <div className="font-semibold text-gray-800">{document.sessions?.length || 0}</div>
+                      <div className="font-semibold text-gray-800">{document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0) ?? 0}</div>
                       <div className="text-gray-500">Sessions</div>
                     </div>
                     <div className="text-center">
