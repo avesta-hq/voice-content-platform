@@ -216,30 +216,22 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           >
             + Add Session
           </button>
-          {/* Buttons based on generated content state */}
-          {document.hasGeneratedContent && document.generatedContent ? (
-            <>
-              <button
-                onClick={() => onViewContent && onViewContent(documentId)}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
-              >
-                View Blog
-              </button>
-              { (hasChangesAfterGeneration || document.requiresRegeneration) && (
-                <button
-                  onClick={() => onGenerateContent(documentId)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-                >
-                  Re-Generate Blog
-                </button>
-              )}
-            </>
-          ) : (
+          {/* Actions: always allow Generate if sessions exist; View when content exists */}
+          {document.sessions.length > 0 && (
             <button
               onClick={() => onGenerateContent(documentId)}
               className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              title="Generate content (overwrites saved content if present)"
             >
-              Generate Blog
+              Generate Content
+            </button>
+          )}
+          {document.hasGeneratedContent && document.generatedContent && (
+            <button
+              onClick={() => onViewContent && onViewContent(documentId)}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+            >
+              View Content
             </button>
           )}
         </div>

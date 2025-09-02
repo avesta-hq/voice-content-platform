@@ -251,38 +251,41 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                   </div>
 
                   {/* Action Buttons - Fixed at bottom */}
-                  <div className="mt-auto flex space-x-2">
-                    <button
-                      onClick={() => onEditDocument(document.id)}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
-                    >
-                      Edit Document
-                    </button>
-                    {document.hasGeneratedContent && document.generatedContent ? (
-                      <div className="flex-1 flex space-x-2">
+                  <div className="mt-auto">
+                    {/* Use a fixed 3-slot grid on md+ to normalize heights; 2-slot on small screens */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 min-h-[44px]">
+                      <button
+                        onClick={() => onEditDocument(document.id)}
+                        className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                      >
+                        Edit Document
+                      </button>
+
+                      {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) ? (
+                        <button
+                          onClick={() => onGenerateContent(document.id)}
+                          className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                          title="Generate content (overwrites saved content if present)"
+                        >
+                          Generate Content
+                        </button>
+                      ) : (
+                        /* placeholder to keep alignment when no generate button */
+                        <span className="hidden md:block"></span>
+                      )}
+
+                      {document.hasGeneratedContent && document.generatedContent ? (
                         <button
                           onClick={() => onViewContent && onViewContent(document.id)}
-                          className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
+                          className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
                         >
                           View Content
                         </button>
-                        {document.requiresRegeneration && (
-                          <button
-                            onClick={() => onGenerateContent(document.id)}
-                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-                          >
-                            Re-Generate
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => onGenerateContent(document.id)}
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-                      >
-                        Generate Content
-                      </button>
-                    )}
+                      ) : (
+                        /* placeholder to keep alignment when no view button */
+                        <span className="hidden md:block"></span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
