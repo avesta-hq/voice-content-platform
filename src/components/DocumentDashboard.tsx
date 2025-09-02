@@ -10,9 +10,11 @@ interface DocumentDashboardProps {
   onCreateNew: () => void;
   onEditDocument: (documentId: string) => void;
   onGenerateContent: (documentId: string) => void;
+  onViewContent?: (documentId: string) => void;
+  reloadToken?: number;
 }
 
-export default function DocumentDashboard({ onCreateNew, onEditDocument, onGenerateContent }: DocumentDashboardProps) {
+export default function DocumentDashboard({ onCreateNew, onEditDocument, onGenerateContent, onViewContent, reloadToken }: DocumentDashboardProps) {
   const [documents, setDocuments] = useState<UserDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -41,7 +43,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
           userDocs.map(async (doc) => {
             try {
               const full = await DocumentService.getDocumentWithSessions(doc.id);
-              return { ...doc, totalSessions: full.sessions.length };
+              return { ...full, totalSessions: full.sessions.length };
             } catch (e) {
               console.warn('Failed to load sessions for doc', doc.id, e);
               return doc;
@@ -98,6 +100,14 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
       loadDocuments();
     }
   }, []); // Remove loadDocuments dependency to prevent infinite loops
+
+  // Force refresh when reloadToken changes
+  useEffect(() => {
+    if (reloadToken !== undefined) {
+      hasLoadedRef.current = false;
+      loadDocuments();
+    }
+  }, [reloadToken]);
 
   const handleDeleteDocument = async (documentId: string) => {
     // Get document title for confirmation
@@ -275,12 +285,31 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                     >
                       Edit Document
                     </button>
-                    <button
-                      onClick={() => onGenerateContent(document.id)}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
-                    >
-                      Generate Blog
-                    </button>
+                    {document.hasGeneratedContent && document.generatedContent ? (
+                      <div className="flex-1 flex space-x-2">
+                        <button
+                          onClick={() => onViewContent && onViewContent(document.id)}
+                          className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
+                        >
+                          View Content
+                        </button>
+                        {document.requiresRegeneration && (
+                          <button
+                            onClick={() => onGenerateContent(document.id)}
+                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                          >
+                            Re-Generate
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => onGenerateContent(document.id)}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                      >
+                        Generate Content
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

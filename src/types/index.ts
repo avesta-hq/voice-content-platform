@@ -90,6 +90,19 @@ export interface AuthResponse {
 }
 
 // Document Management Types
+export interface GeneratedContent {
+  blog: string;
+  linkedin: string;
+  twitter: string;
+  podcast: string;
+}
+
+export interface GeneratedMeta {
+  inputLanguage: string;
+  outputLanguage: string;
+  wordCount: number;
+}
+
 export interface UserDocument {
   id: string;
   userId: number;
@@ -104,6 +117,13 @@ export interface UserDocument {
   totalDuration: number;
   totalSessions: number;
   wordCount: number;
+
+  // Generated Content (auto-saved)
+  generatedContent?: GeneratedContent;
+  hasGeneratedContent?: boolean;
+  generatedAt?: string;
+  generatedMeta?: GeneratedMeta;
+  requiresRegeneration?: boolean;
 }
 
 export interface VoiceSession {

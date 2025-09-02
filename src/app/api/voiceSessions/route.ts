@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Get current database
-    const db = await hybridStorageService.getDatabase() || { voiceSessions: [] };
+    const db = await hybridStorageService.getDatabase() || { voiceSessions: [], userDocuments: [] };
     
     const newSession = {
       id: Date.now().toString(),
@@ -34,6 +34,19 @@ export async function POST(request: NextRequest) {
     // Add to database
     db.voiceSessions = db.voiceSessions || [];
     db.voiceSessions.push(newSession);
+
+    // Invalidate generated content for the parent document (mark requiresRegeneration but keep existing content)
+    if (db.userDocuments && Array.isArray(db.userDocuments)) {
+      const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(newSession.documentId));
+      if (docIndex !== -1) {
+        db.userDocuments[docIndex] = {
+          ...db.userDocuments[docIndex],
+          hasGeneratedContent: true,
+          requiresRegeneration: true,
+          updatedAt: new Date().toISOString()
+        };
+      }
+    }
 
     // Save database
     await hybridStorageService.saveDatabase(db);

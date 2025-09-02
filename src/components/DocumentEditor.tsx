@@ -9,13 +9,15 @@ interface DocumentEditorProps {
   documentId: string;
   onBackToDashboard: () => void;
   onGenerateContent: (documentId: string) => void;
+  onViewContent?: (documentId: string) => void;
 }
 
-export default function DocumentEditor({ documentId, onBackToDashboard, onGenerateContent }: DocumentEditorProps) {
+export default function DocumentEditor({ documentId, onBackToDashboard, onGenerateContent, onViewContent }: DocumentEditorProps) {
   const [document, setDocument] = useState<DocumentWithSessions | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [showSessionRecorder, setShowSessionRecorder] = useState(false);
+  const [hasChangesAfterGeneration, setHasChangesAfterGeneration] = useState(false);
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -49,6 +51,9 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
         sessionNumber: nextSessionNumber,
         notes: ''
       });
+      
+      // Mark as changed since last generation
+      setHasChangesAfterGeneration(true);
       
       // Update local state instead of reloading the entire document
       if (document) {
@@ -156,12 +161,32 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           >
             + Add Session
           </button>
-          <button
-            onClick={() => onGenerateContent(documentId)}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-          >
-            Generate Blog
-          </button>
+          {/* Buttons based on generated content state */}
+          {document.hasGeneratedContent && document.generatedContent ? (
+            <>
+              <button
+                onClick={() => onViewContent && onViewContent(documentId)}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+              >
+                View Blog
+              </button>
+              { (hasChangesAfterGeneration || document.requiresRegeneration) && (
+                <button
+                  onClick={() => onGenerateContent(documentId)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                >
+                  Re-Generate Blog
+                </button>
+              )}
+            </>
+          ) : (
+            <button
+              onClick={() => onGenerateContent(documentId)}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            >
+              Generate Blog
+            </button>
+          )}
         </div>
       </div>
 

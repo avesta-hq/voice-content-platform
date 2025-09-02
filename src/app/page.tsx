@@ -25,6 +25,7 @@ export default function Home() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [pendingDocumentId, setPendingDocumentId] = useState<string>('');
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -83,6 +84,25 @@ export default function Home() {
     setShowConfirmationModal(true);
   };
 
+  const handleViewContent = async (documentId: string) => {
+    // Load document and show saved content in complete screen
+    const doc = await DocumentService.getDocumentWithSessions(documentId);
+    if (doc.hasGeneratedContent && doc.generatedContent) {
+      const transformedContent = [
+        { platform: 'Blog Post', content: doc.generatedContent.blog, formatted: true },
+        { platform: 'LinkedIn', content: doc.generatedContent.linkedin, formatted: true },
+        { platform: 'Twitter', content: doc.generatedContent.twitter, formatted: true },
+        { platform: 'Podcast Script', content: doc.generatedContent.podcast, formatted: true },
+      ];
+      setOriginalText(doc.sessions.map(s=>s.transcript).join(' '));
+      setGeneratedContent(transformedContent);
+      setCurrentStep('complete');
+    } else {
+      handleGenerateContent(documentId);
+    }
+    setReloadToken(t => t + 1);
+  };
+
   const handleConfirmGeneration = async () => {
     if (isGeneratingContent) return; // Prevent multiple calls
     
@@ -124,6 +144,21 @@ export default function Home() {
       if (response.ok) {
         const content = await response.json();
         console.log('API Response successful:', content);
+        // Persist generated content on document
+        await DocumentService.saveGeneratedContent(pendingDocumentId, {
+          blog: content.blogPost,
+          linkedin: content.linkedinPost,
+          twitter: content.twitterPost,
+          podcast: content.podcastScript,
+          inputLanguage: document.inputLanguage,
+          outputLanguage: document.outputLanguage,
+        });
+        // Also clear requiresRegeneration flag
+        await fetch(`/api/userDocuments/${pendingDocumentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requiresRegeneration: false })
+        });
         // Transform the API response to match our expected format
         const transformedContent = [
           { platform: 'Blog Post', content: content.blogPost, formatted: true },
@@ -174,20 +209,20 @@ export default function Home() {
   };
 
   if (!currentUser) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">
-              Voice Content Platform
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-800 mb-4">
+            Voice Content Platform
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Transform your voice into professional blog posts, social media content, and podcast scripts.
-              Your original message stays intact while we optimize it for different platforms.
-            </p>
-          </div>
-          <LoginForm onLoginSuccess={handleLoginSuccess} />
+            Your original message stays intact while we optimize it for different platforms.
+          </p>
         </div>
+          <LoginForm onLoginSuccess={handleLoginSuccess} />
+              </div>
       </main>
     );
   }
@@ -204,7 +239,7 @@ export default function Home() {
             <p className="text-gray-600">
               Welcome back, {currentUser.firstName}! 👋
             </p>
-          </div>
+              </div>
           <div className="flex items-center space-x-4">
             <button
               onClick={handleLogout}
@@ -222,6 +257,8 @@ export default function Home() {
               onCreateNew={handleCreateNewDocument}
               onEditDocument={handleEditDocument}
               onGenerateContent={handleGenerateContent}
+              onViewContent={handleViewContent}
+              reloadToken={reloadToken}
             />
           )}
 
@@ -237,6 +274,7 @@ export default function Home() {
               documentId={currentDocumentId}
               onBackToDashboard={() => setCurrentStep('dashboard')}
               onGenerateContent={handleGenerateContent}
+              onViewContent={handleViewContent}
             />
           )}
 
@@ -289,10 +327,10 @@ export default function Home() {
 
           {currentStep === 'complete' && (
             <ContentDisplay 
-              originalText={originalText}
+                originalText={originalText}
               generatedContent={generatedContent}
               onBackToDashboard={resetToDashboard}
-            />
+              />
           )}
         </div>
 

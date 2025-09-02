@@ -412,6 +412,56 @@ export class DocumentService {
     });
   }
 
+  // Save generated content to a document
+  static async saveGeneratedContent(documentId: string, payload: {
+    blog: string; linkedin: string; twitter: string; podcast: string;
+    inputLanguage: string; outputLanguage: string;
+  }): Promise<UserDocument> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+        method: 'PATCH',
+        headers: DocumentService.getAuthHeaders(),
+        body: JSON.stringify({
+          generatedContent: {
+            blog: payload.blog,
+            linkedin: payload.linkedin,
+            twitter: payload.twitter,
+            podcast: payload.podcast,
+          },
+          hasGeneratedContent: true,
+          generatedAt: new Date().toISOString(),
+          generatedMeta: {
+            inputLanguage: payload.inputLanguage,
+            outputLanguage: payload.outputLanguage,
+            wordCount: payload.blog?.trim().split(/\s+/).length || 0
+          }
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to save generated content: ${response.status}`);
+      }
+      return response.json();
+    });
+  }
+
+  // Invalidate saved generated content when sessions change
+  static async invalidateGeneratedContent(documentId: string): Promise<void> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+        method: 'PATCH',
+        headers: DocumentService.getAuthHeaders(),
+        body: JSON.stringify({
+          hasGeneratedContent: false,
+          generatedContent: undefined,
+          generatedAt: undefined
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to invalidate generated content: ${response.status}`);
+      }
+    });
+  }
+
   // Helper method to get auth headers
   private static getAuthHeaders(): HeadersInit {
     const headers: HeadersInit = {

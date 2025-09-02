@@ -50,11 +50,25 @@ export async function PUT(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
     
-    db.voiceSessions[sessionIndex] = {
+    const updated = {
       ...db.voiceSessions[sessionIndex],
       ...body,
       timestamp: new Date().toISOString()
     };
+    db.voiceSessions[sessionIndex] = updated;
+
+    // Invalidate generated content on parent document (mark requiresRegeneration)
+    if (db.userDocuments && Array.isArray(db.userDocuments)) {
+      const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(updated.documentId));
+      if (docIndex !== -1) {
+        db.userDocuments[docIndex] = {
+          ...db.userDocuments[docIndex],
+          hasGeneratedContent: true,
+          requiresRegeneration: true,
+          updatedAt: new Date().toISOString()
+        };
+      }
+    }
     
     // Save database using hybrid storage
     await hybridStorageService.saveDatabase(db);
@@ -85,9 +99,24 @@ export async function DELETE(
     if (sessionIndex === -1) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+
+    const removed = db.voiceSessions[sessionIndex];
     
     // Remove the session
     db.voiceSessions.splice(sessionIndex, 1);
+
+    // Invalidate generated content on parent document (mark requiresRegeneration)
+    if (db.userDocuments && Array.isArray(db.userDocuments)) {
+      const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(removed.documentId));
+      if (docIndex !== -1) {
+        db.userDocuments[docIndex] = {
+          ...db.userDocuments[docIndex],
+          hasGeneratedContent: true,
+          requiresRegeneration: true,
+          updatedAt: new Date().toISOString()
+        };
+      }
+    }
     
     // Save database using hybrid storage
     await hybridStorageService.saveDatabase(db);

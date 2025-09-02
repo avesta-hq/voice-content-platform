@@ -3,8 +3,9 @@ import { Noto_Sans } from "next/font/google";
 import "./globals.css";
 
 const notoSans = Noto_Sans({
-  subsets: ["latin"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
