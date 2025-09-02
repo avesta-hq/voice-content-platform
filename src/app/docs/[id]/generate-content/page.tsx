@@ -1,0 +1,77 @@
+"use client";
+import React, { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { DocumentService } from "@/lib/documentService";
+import { UserService } from "@/lib/userService";
+
+export default function GenerateContentPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const docId = params?.id as string;
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (!UserService.isAuthenticated()) {
+      router.replace("/");
+      return;
+    }
+
+    const run = async () => {
+      try {
+        const document = await DocumentService.getDocumentWithSessions(docId);
+        const combinedTranscript = document.sessions
+          .sort((a, b) => a.sessionNumber - b.sessionNumber)
+          .map((s) => s.transcript)
+          .join(" ");
+
+        const res = await fetch("/api/generate-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: combinedTranscript,
+            inputLanguage: document.inputLanguage,
+            outputLanguage: document.outputLanguage,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`Generate failed ${res.status}`);
+        const content = await res.json();
+
+        await DocumentService.saveGeneratedContent(docId, {
+          blog: content.blogPost,
+          linkedin: content.linkedinPost,
+          twitter: content.twitterPost,
+          podcast: content.podcastScript,
+          inputLanguage: document.inputLanguage,
+          outputLanguage: document.outputLanguage,
+        });
+
+        await fetch(`/api/userDocuments/${docId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requiresRegeneration: false }),
+        });
+
+        router.replace(`/docs/${docId}/view-content`);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unknown error");
+      }
+    };
+
+    if (docId) run();
+  }, [docId, router]);
+
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+      <div className="container mx-auto px-4">
+        <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Generating Content…</h2>
+          <p className="text-gray-600">Please wait while we generate and save your content.</p>
+          {error && (
+            <p className="text-red-600 mt-4">{error}</p>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
