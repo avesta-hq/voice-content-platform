@@ -37,21 +37,8 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
         console.log('👤 Current user:', currentUser.id); // Debug log
         const userDocs = await DocumentService.getUserDocuments(currentUser.id);
         console.log('📚 Documents loaded:', userDocs.length); // Debug log
-
-        // Enrich with accurate session counts
-        const enrichedDocs = await Promise.all(
-          userDocs.map(async (doc) => {
-            try {
-              const full = await DocumentService.getDocumentWithSessions(doc.id);
-              return { ...full, totalSessions: full.sessions.length };
-            } catch (e) {
-              console.warn('Failed to load sessions for doc', doc.id, e);
-              return doc;
-            }
-          })
-        );
-
-        setDocuments(enrichedDocs);
+        // Render directly from userDocuments; avoid per-doc enrichment calls
+        setDocuments(userDocs);
       }
     } catch (err) {
       setError('Failed to load documents');
@@ -70,20 +57,8 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
       if (currentUser) {
         const userDocs = await DocumentService.getUserDocuments(currentUser.id);
         console.log('📚 Documents refreshed:', userDocs.length); // Debug log
-
-        const enrichedDocs = await Promise.all(
-          userDocs.map(async (doc) => {
-            try {
-              const full = await DocumentService.getDocumentWithSessions(doc.id);
-              return { ...doc, totalSessions: full.sessions.length };
-            } catch (e) {
-              console.warn('Failed to load sessions for doc', doc.id, e);
-              return doc;
-            }
-          })
-        );
-
-        setDocuments(enrichedDocs);
+        // Render directly from userDocuments; avoid per-doc enrichment calls
+        setDocuments(userDocs);
       }
     } catch (err) {
       setError('Failed to refresh documents');
@@ -103,11 +78,11 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
 
   // Force refresh when reloadToken changes
   useEffect(() => {
-    if (reloadToken !== undefined) {
+    if (typeof reloadToken === 'number' && reloadToken > 0) {
       hasLoadedRef.current = false;
       loadDocuments();
     }
-  }, [reloadToken]);
+  }, [reloadToken, loadDocuments]);
 
   const handleDeleteDocument = async (documentId: string) => {
     // Get document title for confirmation

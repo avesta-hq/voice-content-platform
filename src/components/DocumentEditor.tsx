@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DocumentWithSessions } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { getLanguageByCode } from '@/lib/languages';
@@ -18,6 +18,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [error, setError] = useState<string>('');
   const [showSessionRecorder, setShowSessionRecorder] = useState(false);
   const [hasChangesAfterGeneration, setHasChangesAfterGeneration] = useState(false);
+  const hasLoadedRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -35,7 +36,11 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
       }
     };
 
-    loadDocument();
+    // Guard to avoid duplicate effect runs (e.g., React StrictMode in dev)
+    if (hasLoadedRef.current !== documentId) {
+      hasLoadedRef.current = documentId;
+      loadDocument();
+    }
   }, [documentId]); // Only depend on documentId
 
   const handleSessionComplete = async (transcript: string, duration: number) => {
