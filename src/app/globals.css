@@ -36,3 +36,9 @@ body {
   color: #9ca3af;
   opacity: 1;
 }
+
+/* Pointer cursor on interactive controls */
+button, [role="button"], a,
+.clickable, .icon-button {
+  cursor: pointer;
+}

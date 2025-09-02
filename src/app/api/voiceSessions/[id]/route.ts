@@ -61,10 +61,19 @@ export async function PUT(
     if (db.userDocuments && Array.isArray(db.userDocuments)) {
       const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(updated.documentId));
       if (docIndex !== -1) {
+        // Recalculate totals for this document
+        const remaining = (db.voiceSessions || []).filter((s: VoiceSession) => String(s.documentId) === String(updated.documentId));
+        const totalSessions = remaining.length;
+        const totalDuration = remaining.reduce((sum: number, s: VoiceSession) => sum + s.duration, 0);
+        const wordCount = remaining.reduce((sum: number, s: VoiceSession) => sum + (s.transcript?.trim().split(/\s+/).length || 0), 0);
+
         db.userDocuments[docIndex] = {
           ...db.userDocuments[docIndex],
           hasGeneratedContent: true,
           requiresRegeneration: true,
+          totalSessions,
+          totalDuration,
+          wordCount,
           updatedAt: new Date().toISOString()
         };
       }
@@ -105,14 +114,22 @@ export async function DELETE(
     // Remove the session
     db.voiceSessions.splice(sessionIndex, 1);
 
-    // Invalidate generated content on parent document (mark requiresRegeneration)
+    // Invalidate generated content on parent document (mark requiresRegeneration) and update totals
     if (db.userDocuments && Array.isArray(db.userDocuments)) {
       const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(removed.documentId));
       if (docIndex !== -1) {
+        const remaining = (db.voiceSessions || []).filter((s: VoiceSession) => String(s.documentId) === String(removed.documentId));
+        const totalSessions = remaining.length;
+        const totalDuration = remaining.reduce((sum: number, s: VoiceSession) => sum + s.duration, 0);
+        const wordCount = remaining.reduce((sum: number, s: VoiceSession) => sum + (s.transcript?.trim().split(/\s+/).length || 0), 0);
+
         db.userDocuments[docIndex] = {
           ...db.userDocuments[docIndex],
           hasGeneratedContent: true,
           requiresRegeneration: true,
+          totalSessions,
+          totalDuration,
+          wordCount,
           updatedAt: new Date().toISOString()
         };
       }
