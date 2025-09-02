@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Form controls (fixed) */
+  --input-bg: #ffffff;
+  --input-fg: #171717;
+  --input-border: #e5e7eb; /* tailwind gray-200 */
 }
 
 @theme inline {
@@ -10,12 +14,8 @@
   --color-foreground: var(--foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Remove OS color-scheme overrides: keep same palette for all themes */
+/* (intentionally no @media (prefers-color-scheme: dark) overrides) */
 
 body {
   background: var(--background);
@@ -23,4 +23,16 @@ body {
   font-family: "Noto Sans", "Noto Sans Gujarati", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure form controls are readable consistently */
+:where(input, select, textarea) {
+  background-color: var(--input-bg) !important;
+  color: var(--input-fg) !important;
+  border-color: var(--input-border) !important;
+}
+
+:where(input, textarea)::placeholder {
+  color: #9ca3af;
+  opacity: 1;
 }
