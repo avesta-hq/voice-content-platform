@@ -10,6 +10,25 @@ interface ContentDisplayProps {
   onBackToDashboard: () => void;
 }
 
+// Minimal, safe markdown -> HTML for bold/italic plus line breaks
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function markdownToHtml(markdown: string): string {
+  // Escape first to avoid tag injection
+  let html = escapeHtml(markdown);
+  // Bold: **text** (non-greedy, supports multiline) without lookbehind or 's'
+  html = html.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text* (non-greedy, supports multiline)
+  html = html.replace(/\*([\s\S]+?)\*/g, '<em>$1</em>');
+  // IMPORTANT: keep original newlines/spaces; selection copy container uses white-space: pre-wrap
+  return html;
+}
+
 export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard }: ContentDisplayProps) {
   // State to track which buttons have been clicked
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
@@ -60,7 +79,53 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const copyToClipboard = async (text: string, platformKey: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      const supportsAdvanced = typeof window !== 'undefined' && (navigator.clipboard as any)?.write && (window as any).ClipboardItem;
+      // 1) Try selection-based rich copy (widely accepted by editors like LinkedIn)
+      const html = markdownToHtml(text);
+      let copied = false;
+      try {
+        const container = document.createElement('div');
+        container.setAttribute('contenteditable', 'true');
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.whiteSpace = 'pre-wrap';
+        container.innerHTML = html;
+        document.body.appendChild(container);
+
+        const selection = window.getSelection();
+        if (selection) {
+          const range = document.createRange();
+          range.selectNodeContents(container);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          copied = document.execCommand('copy');
+          selection.removeAllRanges();
+        }
+        document.body.removeChild(container);
+      } catch {
+        copied = false;
+      }
+
+      // 2) If selection copy failed, try ClipboardItem with HTML + plaintext
+      if (!copied && supportsAdvanced) {
+        try {
+          // Wrap with pre-wrap style to preserve spaces/newlines on paste
+          const wrapped = `<div style="white-space:pre-wrap">${html}</div>`;
+          const htmlBlob = new Blob([wrapped], { type: 'text/html' });
+          const textBlob = new Blob([text], { type: 'text/plain' });
+          const item = new (window as any).ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob });
+          await (navigator.clipboard as any).write([item]);
+          copied = true;
+        } catch {
+          copied = false;
+        }
+      }
+
+      // 3) Plain-text fallback (no Unicode styling to avoid font changes/char count issues)
+      if (!copied) {
+        await navigator.clipboard.writeText(text);
+      }
       setCopiedStates(prev => ({ ...prev, [platformKey]: true }));
       setTimeout(() => {
         setCopiedStates(prev => ({ ...prev, [platformKey]: false }));
@@ -356,6 +421,27 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                         </>
                       )}
                     </button>
+
+                    {/* Copy using Unicode bold button disabled; default copy now uses this approach */}
+                    {false && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(getDisplayForKey(active.key));
+                            setCopiedStates(prev => ({ ...prev, [active.key]: true }));
+                            setTimeout(() => setCopiedStates(prev => ({ ...prev, [active.key]: false })), 2000);
+                          } catch (e) {
+                            console.error('Styled copy failed', e);
+                          }
+                        }}
+                        className="px-6 py-3 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl hover:from-violet-600 hover:to-violet-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6" />
+                        </svg>
+                        <span>Copy with styling</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() => downloadContent(getDisplayForKey(active.key), active.label)}
