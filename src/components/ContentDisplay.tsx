@@ -79,7 +79,9 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const copyToClipboard = async (text: string, platformKey: string) => {
     try {
-      const supportsAdvanced = typeof window !== 'undefined' && (navigator.clipboard as any)?.write && (window as any).ClipboardItem;
+      const hasClipboard = typeof navigator !== 'undefined' && !!navigator.clipboard;
+      const hasWrite = hasClipboard && typeof (navigator.clipboard as Clipboard).write === 'function';
+      const hasClipboardItem = typeof window !== 'undefined' && 'ClipboardItem' in window;
       // 1) Try selection-based rich copy (widely accepted by editors like LinkedIn)
       const html = markdownToHtml(text);
       let copied = false;
@@ -108,14 +110,15 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       }
 
       // 2) If selection copy failed, try ClipboardItem with HTML + plaintext
-      if (!copied && supportsAdvanced) {
+      if (!copied && hasWrite && hasClipboardItem) {
         try {
           // Wrap with pre-wrap style to preserve spaces/newlines on paste
           const wrapped = `<div style="white-space:pre-wrap">${html}</div>`;
           const htmlBlob = new Blob([wrapped], { type: 'text/html' });
           const textBlob = new Blob([text], { type: 'text/plain' });
-          const item = new (window as any).ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob });
-          await (navigator.clipboard as any).write([item]);
+          const ClipboardItemCtor = (window as unknown as { ClipboardItem: new (data: Record<string, Blob>) => ClipboardItem }).ClipboardItem;
+          const item = new ClipboardItemCtor({ 'text/html': htmlBlob, 'text/plain': textBlob });
+          await (navigator.clipboard as Clipboard).write([item]);
           copied = true;
         } catch {
           copied = false;
@@ -246,7 +249,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const resetRefinement = (key: string) => {
     setRefinedByPlatform(prev => {
-      const clone = { ...prev } as any;
+      const clone: Record<string, { text: string; comment: string }> = { ...prev };
       delete clone[key];
       return clone;
     });
@@ -502,7 +505,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
               <h4 className="text-lg font-semibold">Add comment for {tabs.find(t => t.key === modalPlatformKey)?.label}</h4>
             </div>
             <div className="p-5">
-              <label className="block text-sm text-gray-600 mb-2">Tell us how to refine (e.g., "summarize to 2 lines", "more concise", "bullet points")</label>
+              <label className="block text-sm text-gray-600 mb-2">Tell us how to refine (e.g., &quot;summarize to 2 lines&quot;, &quot;more concise&quot;, &quot;bullet points&quot;)</label>
               <textarea
                 value={modalComment}
                 onChange={(e) => setModalComment(e.target.value)}
