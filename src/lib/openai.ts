@@ -58,8 +58,16 @@ export async function generateContent(request: ContentGenerationRequest): Promis
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL_NAME || "gpt-4",
+    const modelName = process.env.OPENAI_MODEL_NAME || "gpt-4";
+    const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
+
+    const basePayload: {
+      model: string;
+      messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      max_tokens?: number;
+      temperature?: number;
+    } = {
+      model: modelName,
       messages: [
         {
           role: "system",
@@ -71,10 +79,14 @@ export async function generateContent(request: ContentGenerationRequest): Promis
           role: "user",
           content: prompt
         }
-      ],
-      max_tokens: maxTokens,
-      temperature: 0.3,
-    });
+      ]
+    };
+    if (!isGpt5Model) {
+      basePayload.max_tokens = maxTokens;
+      basePayload.temperature = 0.3;
+    }
+
+    const completion = await openai.chat.completions.create(basePayload);
 
     return completion.choices[0]?.message?.content || 'Error generating content';
   } catch (error) {
@@ -127,8 +139,15 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
   ].filter(Boolean).join('\n\n');
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL_NAME || 'gpt-4',
+    const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
+    const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
+    const basePayload: {
+      model: string;
+      messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      max_tokens?: number;
+      temperature?: number;
+    } = {
+      model: modelName,
       messages: [
         {
           role: 'system',
@@ -139,10 +158,13 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
         { role: 'user', content: `Original transcript in {${inputLangName}} (to be expressed in {${outputLangName}}):\n\n${originalText}` },
         { role: 'assistant', content: base },
         { role: 'user', content: refinementInstruction }
-      ],
-      max_tokens: 1000,
-      temperature: 0.2,
-    });
+      ]
+    };
+    if (!isGpt5Model) {
+      basePayload.max_tokens = 1000;
+      basePayload.temperature = 0.2;
+    }
+    const completion = await openai.chat.completions.create(basePayload);
 
     return completion.choices[0]?.message?.content || 'Error refining content';
   } catch (error) {
