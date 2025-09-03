@@ -462,6 +462,33 @@ export class DocumentService {
     });
   }
 
+  // Save refined content for a single platform only
+  static async updateGeneratedPlatform(
+    documentId: string,
+    platform: 'blog' | 'linkedin' | 'twitter' | 'podcast',
+    text: string,
+    meta?: { inputLanguage?: string; outputLanguage?: string }
+  ): Promise<UserDocument> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+        method: 'PATCH',
+        headers: DocumentService.getAuthHeaders(),
+        body: JSON.stringify({
+          generatedContent: { [platform]: text },
+          hasGeneratedContent: true,
+          generatedAt: new Date().toISOString(),
+          ...(meta?.inputLanguage && meta?.outputLanguage
+            ? { generatedMeta: { inputLanguage: meta.inputLanguage, outputLanguage: meta.outputLanguage, wordCount: text?.trim().split(/\s+/).length || 0 } }
+            : {})
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to save refined content: ${response.status}`);
+      }
+      return response.json();
+    });
+  }
+
   // Helper method to get auth headers
   private static getAuthHeaders(): HeadersInit {
     const headers: HeadersInit = {

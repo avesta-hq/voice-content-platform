@@ -104,6 +104,53 @@ export async function generateAllContent(originalText: string, inputLanguage: st
   };
 }
 
+export interface RefineContentRequest extends ContentGenerationRequest {
+  comment: string;
+  currentPlatformOutput?: string;
+}
+
+export async function generateRefinedContent(request: RefineContentRequest): Promise<string> {
+  const { originalText, inputLanguage, outputLanguage, platform, comment, currentPlatformOutput } = request;
+
+  const inputLangName = getLanguageName(inputLanguage);
+  const outputLangName = getLanguageName(outputLanguage);
+
+  // Base prompts (reuse)
+  const base = await generateContent({ originalText, inputLanguage, outputLanguage, platform });
+
+  // Build refinement guidance; include current output when available to steer edits
+  const refinementInstruction = [
+    `User instruction: ${comment}`,
+    'Apply the instruction exactly while preserving the original meaning and facts.',
+    'Do not introduce new information. Respect the platform conventions.',
+    currentPlatformOutput ? `Here is the current platform output to refine:\n\n${currentPlatformOutput}` : undefined
+  ].filter(Boolean).join('\n\n');
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL_NAME || 'gpt-4',
+      messages: [
+        {
+          role: 'system',
+          content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Maintain exact meaning. Do not hallucinate.')
+            .replace('{inputLang}', inputLangName)
+            .replace('{outputLang}', outputLangName)
+        },
+        { role: 'user', content: `Original transcript in {${inputLangName}} (to be expressed in {${outputLangName}}):\n\n${originalText}` },
+        { role: 'assistant', content: base },
+        { role: 'user', content: refinementInstruction }
+      ],
+      max_tokens: 1000,
+      temperature: 0.2,
+    });
+
+    return completion.choices[0]?.message?.content || 'Error refining content';
+  } catch (error) {
+    console.error('OpenAI API refine error:', error);
+    throw new Error('Failed to refine content');
+  }
+}
+
 // Helper function to get language names
 function getLanguageName(languageCode: string): string {
   const languageMap: { [key: string]: string } = {

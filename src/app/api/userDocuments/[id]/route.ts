@@ -86,10 +86,18 @@ export async function PATCH(
     if (documentIndex === -1) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
-    
+
+    // Deep merge for generatedContent to avoid overwriting sibling platforms
+    const existing = db.userDocuments[documentIndex];
+    let nextGeneratedContent = existing.generatedContent;
+    if (body && typeof body === 'object' && 'generatedContent' in body && body.generatedContent) {
+      nextGeneratedContent = { ...(existing.generatedContent || {}), ...body.generatedContent };
+    }
+
     db.userDocuments[documentIndex] = {
-      ...db.userDocuments[documentIndex],
+      ...existing,
       ...body,
+      ...(nextGeneratedContent ? { generatedContent: nextGeneratedContent } : {}),
       updatedAt: new Date().toISOString()
     };
     

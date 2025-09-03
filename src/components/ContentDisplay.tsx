@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformContent } from '@/types';
+import { DocumentService } from '@/lib/documentService';
 
 interface ContentDisplayProps {
   originalText: string;
@@ -12,6 +13,18 @@ interface ContentDisplayProps {
 export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard }: ContentDisplayProps) {
   // State to track which buttons have been clicked
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
+
+  // Refinement state per platform tab (ephemeral)
+  const [refinedByPlatform, setRefinedByPlatform] = useState<{ [key: string]: { text: string; comment: string } }>({});
+  const [isRefining, setIsRefining] = useState<{ [key: string]: boolean }>({});
+  const [errorByPlatform, setErrorByPlatform] = useState<{ [key: string]: string | null }>({});
+  const [isSaving, setIsSaving] = useState<{ [key: string]: boolean }>({});
+  const [refinedSaved, setRefinedSaved] = useState<{ [key: string]: boolean }>({});
+
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [modalPlatformKey, setModalPlatformKey] = useState<string>('');
+  const [modalComment, setModalComment] = useState<string>('');
 
   // Tabs: only for Generated Content
   const tabs = useMemo(() => (
@@ -32,6 +45,18 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
   }, [tabs, activeTab]);
 
   const active = tabs.find(t => t.key === activeTab) || tabs[0];
+
+  const getOriginalForKey = (key: string) => tabs.find(t => t.key === key)?.content || '';
+  const getDisplayForKey = (key: string) => refinedByPlatform[key]?.text || getOriginalForKey(key);
+
+  const platformSlugForKey = (key: string): 'blog' | 'linkedin' | 'twitter' | 'podcast' => {
+    const tab = tabs.find(t => t.key === key);
+    const label = (tab?.label || '').toLowerCase();
+    if (label.includes('blog')) return 'blog';
+    if (label.includes('linkedin')) return 'linkedin';
+    if (label.includes('twitter')) return 'twitter';
+    return 'podcast';
+  };
 
   const copyToClipboard = async (text: string, platformKey: string) => {
     try {
@@ -100,6 +125,68 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const selectedStyle = getPlatformStyle(active?.label || '');
 
+  const openCommentModal = (platformKey: string) => {
+    setModalPlatformKey(platformKey);
+    setModalComment(refinedByPlatform[platformKey]?.comment || '');
+    setIsModalOpen(true);
+  };
+
+  const closeCommentModal = () => {
+    setIsModalOpen(false);
+    setModalPlatformKey('');
+    setModalComment('');
+  };
+
+  const submitRefinement = async () => {
+    const key = modalPlatformKey;
+    if (!key || !modalComment.trim()) return;
+
+    setIsRefining(prev => ({ ...prev, [key]: true }));
+    setErrorByPlatform(prev => ({ ...prev, [key]: null }));
+    try {
+      // Map key back to platform slug
+      const tab = tabs.find(t => t.key === key);
+      if (!tab) throw new Error('Invalid platform');
+      const platformSlug = tab.label.toLowerCase().includes('blog') ? 'blog'
+        : tab.label.toLowerCase().includes('linkedin') ? 'linkedin'
+        : tab.label.toLowerCase().includes('twitter') ? 'twitter'
+        : 'podcast';
+
+      // Need documentId: embed via dataset on body or window? We'll fetch from URL
+      const urlParts = window.location.pathname.split('/');
+      const docId = urlParts[urlParts.indexOf('docs') + 1];
+
+      const res = await fetch('/api/refine-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: docId, platform: platformSlug, comment: modalComment.trim() })
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        throw new Error(j?.error || `Refine failed ${res.status}`);
+      }
+      const data = await res.json();
+      const refinedText = data.refined as string;
+
+      setRefinedByPlatform(prev => ({ ...prev, [key]: { text: refinedText, comment: modalComment.trim() } }));
+      setIsModalOpen(false);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setErrorByPlatform(prev => ({ ...prev, [modalPlatformKey]: msg }));
+    } finally {
+      setIsRefining(prev => ({ ...prev, [modalPlatformKey]: false }));
+    }
+  };
+
+  const resetRefinement = (key: string) => {
+    setRefinedByPlatform(prev => {
+      const clone = { ...prev } as any;
+      delete clone[key];
+      return clone;
+    });
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4">
       {/* Hero Section */}
@@ -117,7 +204,19 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         </p>
       </div>
 
-      {/* Original Input Display (unchanged) */}
+      {/* Back to Dashboard hyperlink */}
+      <div className="mb-4">
+        <button
+          onClick={onBackToDashboard}
+          className="text-indigo-600 hover:text-indigo-700 underline font-medium inline-flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to Dashboard</span>
+        </button>
+      </div>
+
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center">
@@ -171,76 +270,180 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     <span className="text-2xl">{selectedStyle.headerIcon}</span>
                     <h4 className="text-xl font-bold capitalize">{active.label}</h4>
                   </div>
-                  <div className="text-sm opacity-90">Ready to use</div>
+                  <div className="flex items-center gap-3">
+                    {refinedByPlatform[active.key] && (
+                      <span className="text-xs bg-white/20 px-2 py-1 rounded">Refined{refinedSaved[active.key] ? ' • Saved' : ''}</span>
+                    )}
+                    <button
+                      onClick={() => openCommentModal(active.key)}
+                      className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-md text-sm font-semibold"
+                    >
+                      Refine this output
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* Content Body */}
               <div className="p-6 bg-white">
-                <div className="mb-6">
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                    <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                      {active.content}
-                    </pre>
+                {/* When refined exists: show split view; else show only original */}
+                {refinedByPlatform[active.key] ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                    <div className="flex flex-col h-full">
+                      <div className="text-sm text-gray-500 mb-2">Original</div>
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex-1">
+                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
+                          {getOriginalForKey(active.key)}
+                        </pre>
+                      </div>
+                    </div>
+                    <div className="flex flex-col h-full">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-500">Refined</div>
+                        {/* Reset to original temporarily disabled */}
+                        {false && (
+                          <button
+                            onClick={() => resetRefinement(active.key)}
+                            className="text-sm text-blue-600 hover:text-blue-700 underline"
+                          >
+                            Reset to original
+                          </button>
+                        )}
+                      </div>
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px] flex-1">
+                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
+                          {refinedByPlatform[active.key].text}
+                        </pre>
+                      </div>
+                    </div>
                   </div>
+                ) : (
+                  <div>
+                    <div className="text-sm text-gray-500 mb-2">Original</div>
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                      <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
+                        {getOriginalForKey(active.key)}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Row: left (Copy/Download), right (Save new content) */}
+                <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => copyToClipboard(getDisplayForKey(active.key), active.key)}
+                      className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center space-x-2 ${
+                        copiedStates[active.key]
+                          ? 'bg-green-500 text-white cursor-default shadow-lg'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transform hover:scale-105'
+                      }`}
+                      disabled={copiedStates[active.key]}
+                    >
+                      {copiedStates[active.key] ? (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          <span>Copy Content</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => downloadContent(getDisplayForKey(active.key), active.label)}
+                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>Download</span>
+                    </button>
+                  </div>
+
+                  {refinedByPlatform[active.key] && !refinedSaved[active.key] && (
+                    <div className="md:ml-auto">
+                      <button
+                        onClick={async () => {
+                          const key = active.key;
+                          const refined = refinedByPlatform[key]?.text;
+                          if (!refined) return;
+                          setIsSaving(prev => ({ ...prev, [key]: true }));
+                          try {
+                            const urlParts = window.location.pathname.split('/');
+                            const docId = urlParts[urlParts.indexOf('docs') + 1];
+                            const platform = platformSlugForKey(key);
+                            await DocumentService.updateGeneratedPlatform(docId, platform, refined);
+                            setRefinedSaved(prev => ({ ...prev, [key]: true }));
+                          } catch (e) {
+                            console.error(e);
+                            alert('Failed to save new content. Please try again.');
+                          } finally {
+                            setIsSaving(prev => ({ ...prev, [key]: false }));
+                          }
+                        }}
+                        disabled={isSaving[active.key]}
+                        className={`px-4 py-2 rounded-md text-sm font-semibold ${isSaving[active.key] ? 'bg-emerald-300 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`}
+                      >
+                        {isSaving[active.key] ? 'Saving…' : 'Save new content'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => copyToClipboard(active.content, active.key)}
-                    className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center space-x-2 ${
-                      copiedStates[active.key]
-                        ? 'bg-green-500 text-white cursor-default shadow-lg'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transform hover:scale-105'
-                    }`}
-                    disabled={copiedStates[active.key]}
-                  >
-                    {copiedStates[active.key] ? (
-                      <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span>Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <span>Copy Content</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => downloadContent(active.content, active.label)}
-                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>Download</span>
-                  </button>
-                </div>
+                {/* Inline error */}
+                {errorByPlatform[active.key] && (
+                  <div className="mt-4 text-red-600 text-sm">{errorByPlatform[active.key]}</div>
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-center mt-8 mb-12">
-        <button
-          onClick={onBackToDashboard}
-          className="px-10 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold text-lg flex items-center space-x-3"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Back to Dashboard</span>
-        </button>
-      </div>
+      {/* Comment Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h4 className="text-lg font-semibold">Add comment for {tabs.find(t => t.key === modalPlatformKey)?.label}</h4>
+            </div>
+            <div className="p-5">
+              <label className="block text-sm text-gray-600 mb-2">Tell us how to refine (e.g., "summarize to 2 lines", "more concise", "bullet points")</label>
+              <textarea
+                value={modalComment}
+                onChange={(e) => setModalComment(e.target.value)}
+                placeholder="Your instruction..."
+                rows={5}
+                maxLength={500}
+                className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="px-5 pb-5 flex items-center justify-end gap-3">
+              <button
+                onClick={closeCommentModal}
+                className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRefinement}
+                disabled={isRefining[modalPlatformKey] || !modalComment.trim()}
+                className={`px-4 py-2 rounded-md text-white ${isRefining[modalPlatformKey] ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-60`}
+              >
+                {isRefining[modalPlatformKey] ? 'Generating…' : 'Generate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
