@@ -13,6 +13,7 @@ frontend:
         - env | grep -e OPENAI_BLOG_PROMPT >> .env.production
         - env | grep -e OPENAI_LINKEDIN_PROMPT >> .env.production
         - env | grep -e OPENAI_TWITTER_PROMPT >> .env.production
+        - env | grep -e OPENAI_TWITTER_WITH_THREAD_PROMPT >> .env.production
         - env | grep -e OPENAI_PODCAST_PROMPT >> .env.production
         - env | grep -e OPENAI_SYSTEM_INSTRUCTION >> .env.production
         # AWS S3 Configuration (renamed to avoid reserved prefix)
