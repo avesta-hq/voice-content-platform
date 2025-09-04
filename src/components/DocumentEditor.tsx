@@ -20,6 +20,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [hasChangesAfterGeneration, setHasChangesAfterGeneration] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const hasLoadedRef = useRef<string | null>(null);
+  const [editSessionId, setEditSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -344,17 +345,23 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <span>{session.transcript.trim().split(/\s+/).length} words</span>
-                      <button
+                    <div className="flex items-center text-sm text-gray-500 gap-1 sm:gap-2">
+                       <span>{session.transcript.trim().split(/\s+/).length} words</span>
+                       <button
+                        onClick={() => setEditSessionId(session.id)}
+                        className="text-blue-600 hover:text-blue-700 transition-colors p-1 icon-button"
+                        title="Edit session"
+                        aria-label="Edit session"
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                       <button
                         onClick={() => handleSessionDelete(session.id)}
-                        className="ml-3 text-red-500 hover:text-red-600 transition-colors p-1 icon-button"
+                        className="text-red-500 hover:text-red-600 transition-colors p-1 icon-button"
                         title="Delete session"
                         aria-label="Delete session"
                       >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
                   </div>
@@ -383,9 +390,29 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           </div>
         )}
       </div>
+      {editSessionId && document && (
+        <SessionEditModal
+          open={true}
+          session={document.sessions.find(s => s.id === editSessionId)!}
+          inputLanguage={document.inputLanguage}
+          onClose={() => setEditSessionId(null)}
+          onSaved={(updated) => {
+            setDocument(prev => {
+              if (!prev) return prev;
+              const updatedSessions = prev.sessions.map(s => s.id === updated.id ? updated : s);
+              const totalDuration = updatedSessions.reduce((sum, s) => sum + s.duration, 0);
+              const wordCount = updatedSessions.reduce((sum, s) => sum + s.transcript.trim().split(/\s+/).length, 0);
+              return { ...prev, sessions: updatedSessions, totalDuration, wordCount, updatedAt: new Date().toISOString() };
+            });
+            setHasChangesAfterGeneration(true);
+            showToast('success', 'Session updated');
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// Import SessionRecorder component
 import SessionRecorder from './SessionRecorder';
+import SessionEditModal from './SessionEditModal';
+import { Pencil, Trash2 } from 'lucide-react';
