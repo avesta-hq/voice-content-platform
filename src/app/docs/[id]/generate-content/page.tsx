@@ -46,6 +46,7 @@ export default function GenerateContentPage() {
           podcast: content.podcastScript,
           inputLanguage: document.inputLanguage,
           outputLanguage: document.outputLanguage,
+          twitterThread: content.twitterThread,
         });
 
         await fetch(`/api/userDocuments/${docId}`, {

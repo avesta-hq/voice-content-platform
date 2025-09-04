@@ -416,6 +416,7 @@ export class DocumentService {
   static async saveGeneratedContent(documentId: string, payload: {
     blog: string; linkedin: string; twitter: string; podcast: string;
     inputLanguage: string; outputLanguage: string;
+    twitterThread?: string[];
   }): Promise<UserDocument> {
     return this.retryWithBackoff(async () => {
       const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
@@ -427,6 +428,7 @@ export class DocumentService {
             linkedin: payload.linkedin,
             twitter: payload.twitter,
             podcast: payload.podcast,
+            ...(payload.twitterThread ? { twitterThread: payload.twitterThread } : {})
           },
           hasGeneratedContent: true,
           generatedAt: new Date().toISOString(),

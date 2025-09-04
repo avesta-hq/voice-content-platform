@@ -32,12 +32,16 @@ export default function ViewContentPage() {
         setOriginalText(combined);
 
         if (doc.generatedContent) {
-          setContent([
+          const items: PlatformContent[] = [
             { platform: "Blog Post", content: doc.generatedContent.blog, formatted: true },
             { platform: "LinkedIn", content: doc.generatedContent.linkedin, formatted: true },
             { platform: "Twitter", content: doc.generatedContent.twitter, formatted: true },
             { platform: "Podcast Script", content: doc.generatedContent.podcast, formatted: true },
-          ]);
+          ];
+          if (doc.generatedContent.twitterThread && doc.generatedContent.twitterThread.length > 0) {
+            items.splice(3, 0, { platform: "Twitter with thread", content: doc.generatedContent.twitterThread.join("\n\n"), formatted: true, twitterThread: doc.generatedContent.twitterThread });
+          }
+          setContent(items);
         } else {
           setContent(null);
         }

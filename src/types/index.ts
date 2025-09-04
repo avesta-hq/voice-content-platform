@@ -18,6 +18,7 @@ export interface PlatformContent {
   platform: string;
   content: string;
   formatted: boolean;
+  twitterThread?: string[];
 }
 
 export interface RecordingState {
@@ -95,6 +96,7 @@ export interface GeneratedContent {
   linkedin: string;
   twitter: string;
   podcast: string;
+  twitterThread?: string[];
 }
 
 export interface GeneratedMeta {

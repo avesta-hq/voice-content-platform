@@ -92,6 +92,12 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
     return getOriginalForKey(key);
   };
 
+  // Thread support for Twitter: check if thread exists in initial generatedContent
+  const twitterThread: string[] | undefined = useMemo(() => {
+    const twitter = generatedContent.find(gc => gc.platform === 'Twitter');
+    return twitter?.twitterThread;
+  }, [generatedContent]);
+
   const platformSlugForKey = (key: string): 'blog' | 'linkedin' | 'twitter' | 'podcast' => {
     const tab = tabs.find(t => t.key === key);
     const label = (tab?.label || '').toLowerCase();
@@ -409,8 +415,35 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
               {/* Content Body */}
               <div className="p-6 bg-white">
+                {/* Twitter thread rendering */}
+                {active.label === 'Twitter' && twitterThread && twitterThread.length > 1 ? (
+                  <div className="mb-6 space-y-3">
+                    {twitterThread.map((tweet, idx) => (
+                      <div key={idx} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
+                          <span>Tweet {idx + 1}</span>
+                          <span>{tweet.length}/280</span>
+                        </div>
+                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{tweet}</pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : active.label === 'Twitter with thread' && twitterThread && twitterThread.length > 0 ? (
+                  <div className="mb-6 space-y-3">
+                    {twitterThread.map((tweet, idx) => (
+                      <div key={idx} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
+                          <span>Tweet {idx + 1}</span>
+                          <span>{tweet.length}/280</span>
+                        </div>
+                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{tweet}</pre>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
                 {/* When refined exists: show split view; else show only original */}
-                {refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
+                {active.label !== 'Twitter' && active.label !== 'Twitter with thread' && refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
                     <div className="flex flex-col h-full">
                       <div className="text-sm text-gray-500 mb-2">Original</div>
@@ -434,9 +467,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                         )}
                       </div>
                       <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px] flex-1">
-                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                          {refinedByPlatform[active.key]?.text}
-                        </pre>
+                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{refinedByPlatform[active.key]?.text}</pre>
                       </div>
                     </div>
                   </div>

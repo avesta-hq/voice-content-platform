@@ -11,11 +11,73 @@ export interface ContentGenerationRequest {
   platform: 'blog' | 'linkedin' | 'twitter' | 'podcast';
 }
 
+function looksLikeRefusal(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes("i'm sorry") ||
+    t.includes('i am sorry') ||
+    t.includes("can't assist") ||
+    t.includes('cannot assist') ||
+    t.includes('not able to help') ||
+    t.includes('i cannot') ||
+    t.includes('unable to comply')
+  );
+}
+
+function splitToTweets(source: string): string[] {
+  const max = 280;
+  const target = 240; // aim to leave room for markers
+  const clean = source.replace(/\s+$/g, '').replace(/\n{2,}/g, '\n').trim();
+  const paras = clean.split(/\n+/).filter(Boolean);
+  const chunks: string[] = [];
+  let current = '';
+  const pushCurrent = () => {
+    if (current.trim()) chunks.push(current.trim());
+    current = '';
+  };
+  for (const para of paras) {
+    const sentences = para.split(/(?<=[.!?])\s+/);
+    for (const s of sentences) {
+      if ((current + (current ? ' ' : '') + s).length <= target) {
+        current = current ? current + ' ' + s : s;
+      } else {
+        if (current) pushCurrent();
+        if (s.length > target) {
+          // hard wrap long sentence
+          let i = 0;
+          while (i < s.length) {
+            const piece = s.slice(i, i + target);
+            chunks.push(piece.trim());
+            i += target;
+          }
+          current = '';
+        } else {
+          current = s;
+        }
+      }
+    }
+    if (current) pushCurrent();
+  }
+  if (current) pushCurrent();
+  // apply markers
+  const n = Math.max(chunks.length, 1);
+  return chunks.map((text, idx) => {
+    const i = idx + 1;
+    let decorated = text;
+    if (n > 1) {
+      if (i === 1) decorated = `🧵 ${decorated} (${i}/${n}) 👇`;
+      else if (i === n) decorated = `${decorated} (${i}/${n})`;
+      else decorated = `${decorated} (${i}/${n})`;
+    }
+    if (decorated.length > max) decorated = decorated.slice(0, max);
+    return decorated;
+  });
+}
+
 export async function generateContent(request: ContentGenerationRequest): Promise<string> {
   const { originalText, inputLanguage, outputLanguage, platform } = request;
   
   let prompt = '';
-  let maxTokens = 1000;
   
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
@@ -32,28 +94,24 @@ export async function generateContent(request: ContentGenerationRequest): Promis
         .replace('{inputLang}', inputLangName)
         .replace('{outputLang}', outputLangName)
         .replace('{originalText}', originalText);
-      maxTokens = 2000;
       break;
     case 'linkedin':
       prompt = linkedinPrompt
         .replace('{inputLang}', inputLangName)
         .replace('{outputLang}', outputLangName)
         .replace('{originalText}', originalText);
-      maxTokens = 1000;
       break;
     case 'twitter':
       prompt = twitterPrompt
         .replace('{inputLang}', inputLangName)
         .replace('{outputLang}', outputLangName)
         .replace('{originalText}', originalText);
-      maxTokens = 500;
       break;
     case 'podcast':
       prompt = podcastPrompt
         .replace('{inputLang}', inputLangName)
         .replace('{outputLang}', outputLangName)
         .replace('{originalText}', originalText);
-      maxTokens = 1500;
       break;
   }
 
@@ -82,7 +140,7 @@ export async function generateContent(request: ContentGenerationRequest): Promis
       ]
     };
     if (!isGpt5Model) {
-      basePayload.max_tokens = maxTokens;
+      basePayload.max_tokens = 1000;
       basePayload.temperature = 0.3;
     }
 
@@ -95,24 +153,69 @@ export async function generateContent(request: ContentGenerationRequest): Promis
   }
 }
 
+async function generateTwitterThread(originalText: string, inputLanguage: string, outputLanguage: string, fallbackSource?: string): Promise<string[]> {
+  const inputLangName = getLanguageName(inputLanguage);
+  const outputLangName = getLanguageName(outputLanguage);
+  const threadPrompt = (process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT || 'Create a numbered Twitter thread.')
+    .replace('{inputLang}', inputLangName)
+    .replace('{outputLang}', outputLangName)
+    .replace('{originalText}', originalText);
+  try {
+    const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
+    const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
+    const payload: {
+      model: string;
+      messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      max_tokens?: number;
+      temperature?: number;
+    } = {
+      model: modelName,
+      messages: [
+        { role: 'system', content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Maintain exact meaning. Do not hallucinate. Never refuse safe requests.').replace('{inputLang}', inputLangName).replace('{outputLang}', outputLangName) },
+        { role: 'user', content: threadPrompt }
+      ]
+    };
+    if (!isGpt5Model) {
+      payload.max_tokens = 1400;
+      payload.temperature = 0.3;
+    }
+    const completion = await openai.chat.completions.create(payload);
+    const text = completion.choices[0]?.message?.content || '';
+    if (!text || looksLikeRefusal(text)) {
+      const source = fallbackSource || originalText;
+      return splitToTweets(source);
+    }
+    const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+    const parsed = lines.map(l => l.replace(/^\d+\.?\)?\s+/, '')).filter(Boolean).map(t => t.length > 280 ? t.slice(0, 280) : t);
+    return parsed.length > 0 ? parsed : splitToTweets(fallbackSource || originalText);
+  } catch (e) {
+    console.error('OpenAI API thread error:', e);
+    return splitToTweets(fallbackSource || originalText);
+  }
+}
+
 export async function generateAllContent(originalText: string, inputLanguage: string, outputLanguage: string): Promise<{
   blogPost: string;
   linkedinPost: string;
   twitterPost: string;
   podcastScript: string;
+  twitterThread?: string[];
 }> {
-  const [blogPost, linkedinPost, twitterPost, podcastScript] = await Promise.all([
-    generateContent({ originalText, inputLanguage, outputLanguage, platform: 'blog' }),
+  // Generate blog first to have a high-quality {outputLang} source for fallback splitting
+  const blogPost = await generateContent({ originalText, inputLanguage, outputLanguage, platform: 'blog' });
+  const [linkedinPost, twitterRaw, podcastScript] = await Promise.all([
     generateContent({ originalText, inputLanguage, outputLanguage, platform: 'linkedin' }),
     generateContent({ originalText, inputLanguage, outputLanguage, platform: 'twitter' }),
     generateContent({ originalText, inputLanguage, outputLanguage, platform: 'podcast' })
   ]);
+  const thread = await generateTwitterThread(originalText, inputLanguage, outputLanguage, blogPost);
 
   return {
     blogPost,
     linkedinPost,
-    twitterPost,
-    podcastScript
+    twitterPost: twitterRaw,
+    podcastScript,
+    twitterThread: thread && thread.length > 0 ? thread : undefined
   };
 }
 
