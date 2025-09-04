@@ -198,25 +198,27 @@ export async function generateAllContent(originalText: string, inputLanguage: st
   blogPost: string;
   linkedinPost: string;
   twitterPost: string;
-  podcastScript: string;
+  podcastScript: string; // will be empty for lazy mode
   twitterThread?: string[];
 }> {
-  // Generate blog first to have a high-quality {outputLang} source for fallback splitting
-  const blogPost = await generateContent({ originalText, inputLanguage, outputLanguage, platform: 'blog' });
-  const [linkedinPost, twitterRaw, podcastScript] = await Promise.all([
+  // Generate linkedin and twitter first; blog will be lazy-generated
+  const [linkedinPost, twitterRaw] = await Promise.all([
     generateContent({ originalText, inputLanguage, outputLanguage, platform: 'linkedin' }),
-    generateContent({ originalText, inputLanguage, outputLanguage, platform: 'twitter' }),
-    generateContent({ originalText, inputLanguage, outputLanguage, platform: 'podcast' })
+    generateContent({ originalText, inputLanguage, outputLanguage, platform: 'twitter' })
   ]);
-  const thread = await generateTwitterThread(originalText, inputLanguage, outputLanguage, blogPost);
+  const thread = await generateTwitterThread(originalText, inputLanguage, outputLanguage, linkedinPost);
 
   return {
-    blogPost,
+    blogPost: '',
     linkedinPost,
     twitterPost: twitterRaw,
-    podcastScript,
+    podcastScript: '',
     twitterThread: thread && thread.length > 0 ? thread : undefined
   };
+}
+
+export async function generatePodcast(originalText: string, inputLanguage: string, outputLanguage: string): Promise<string> {
+  return generateContent({ originalText, inputLanguage, outputLanguage, platform: 'podcast' });
 }
 
 export interface RefineContentRequest extends ContentGenerationRequest {

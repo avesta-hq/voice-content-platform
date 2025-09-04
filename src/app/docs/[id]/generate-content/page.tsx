@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { DocumentService } from "@/lib/documentService";
 import { UserService } from "@/lib/userService";
@@ -10,12 +10,16 @@ export default function GenerateContentPage() {
   const docId = params?.id as string;
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const hasRunRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!UserService.isAuthenticated()) {
       router.replace("/");
       return;
     }
+
+    if (hasRunRef.current) return;
+    hasRunRef.current = true;
 
     const run = async () => {
       try {
@@ -64,7 +68,7 @@ export default function GenerateContentPage() {
     };
 
     if (docId) run();
-  }, [docId, router]);
+  }, [docId]);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">

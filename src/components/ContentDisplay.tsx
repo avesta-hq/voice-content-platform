@@ -223,6 +223,104 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const selectedStyle = getPlatformStyle(active?.label || '');
 
+  // Lazy podcast generation state
+  const [podcastLoading, setPodcastLoading] = useState<boolean>(false);
+  const [podcastError, setPodcastError] = useState<string>('');
+  const [podcastContent, setPodcastContent] = useState<string>('');
+  const podcastRequestedRef = React.useRef<boolean>(false);
+  const lastPodcastDocIdRef = React.useRef<string | null>(null);
+
+  // Lazy blog generation state
+  const [blogLoading, setBlogLoading] = useState<boolean>(false);
+  const [blogError, setBlogError] = useState<string>('');
+  const [blogContent, setBlogContent] = useState<string>('');
+  const blogRequestedRef = React.useRef<boolean>(false);
+  const lastBlogDocIdRef = React.useRef<string | null>(null);
+  const hasPodcast = useMemo(() => {
+    const p = generatedContent.find(gc => gc.platform === 'Podcast Script');
+    return !!(podcastContent && podcastContent.trim().length > 0) || !!(p && p.content && p.content.trim().length > 0);
+  }, [generatedContent, podcastContent]);
+  const hasBlog = useMemo(() => {
+    const b = generatedContent.find(gc => gc.platform === 'Blog Post');
+    return !!(blogContent && blogContent.trim().length > 0) || !!(b && b.content && b.content.trim().length > 0);
+  }, [generatedContent, blogContent]);
+
+  // When user opens Podcast tab and it's missing, generate on demand
+  useEffect(() => {
+    const isPodcastTab = active?.label === 'Podcast Script';
+    if (!isPodcastTab || hasPodcast || podcastLoading || podcastRequestedRef.current) return;
+    (async () => {
+      try {
+        setPodcastLoading(true);
+        setPodcastError('');
+        podcastRequestedRef.current = true;
+        // Derive docId from URL
+        const parts = window.location.pathname.split('/');
+        const docId = parts[parts.indexOf('docs') + 1];
+        if (lastPodcastDocIdRef.current === docId) {
+          // Already requested for this document in this session
+          setPodcastLoading(false);
+          return;
+        }
+        lastPodcastDocIdRef.current = docId;
+        const res = await fetch('/api/generate-podcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: docId })
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => null);
+          throw new Error(j?.error || `Status ${res.status}`);
+        }
+        const data = await res.json();
+        setPodcastContent(data.podcastScript || '');
+        setPodcastLoading(false);
+      } catch (e) {
+        setPodcastError(e instanceof Error ? e.message : 'Failed to generate');
+        setPodcastLoading(false);
+        podcastRequestedRef.current = false; // allow retry on next activation
+        lastPodcastDocIdRef.current = null;
+      }
+    })();
+  }, [active, hasPodcast, podcastLoading, generatedContent]);
+
+  // When user opens Blog tab and it's missing, generate on demand
+  useEffect(() => {
+    const isBlogTab = active?.label === 'Blog Post';
+    if (!isBlogTab || hasBlog || blogLoading || blogRequestedRef.current) return;
+    (async () => {
+      try {
+        setBlogLoading(true);
+        setBlogError('');
+        blogRequestedRef.current = true;
+        const parts = window.location.pathname.split('/');
+        const docId = parts[parts.indexOf('docs') + 1];
+        if (lastBlogDocIdRef.current === docId) {
+          setBlogLoading(false);
+          return;
+        }
+        lastBlogDocIdRef.current = docId;
+        const res = await fetch('/api/generate-blog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: docId })
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => null);
+          throw new Error(j?.error || `Status ${res.status}`);
+        }
+        const data = await res.json();
+        setBlogContent(data.blogPost || '');
+        setBlogLoading(false);
+      } catch (e) {
+        setBlogError(e instanceof Error ? e.message : 'Failed to generate');
+        setBlogLoading(false);
+        blogRequestedRef.current = false;
+        lastBlogDocIdRef.current = null;
+      }
+    })();
+  }, [active, hasBlog, blogLoading, generatedContent]);
+
   const openCommentModal = (platformKey: string) => {
     setModalPlatformKey(platformKey);
     setModalComment(refinedByPlatform[platformKey]?.comment || '');
@@ -442,6 +540,48 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                   </div>
                 ) : null}
 
+                {/* Podcast lazy generation states */}
+                {active.label === 'Podcast Script' && podcastLoading && (
+                  <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6">
+                    <div className="flex items-center justify-center mb-6">
+                      <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
+                    </div>
+                    <div className="animate-pulse">
+                      <div className="h-6 w-1/3 bg-gray-200 rounded mb-4"></div>
+                      <div className="space-y-3">
+                        <div className="h-4 w-full bg-gray-200 rounded"></div>
+                        <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
+                        <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
+                        <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {active.label === 'Podcast Script' && podcastError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{podcastError}</div>
+                )}
+
+                {/* Blog lazy generation states */}
+                {active.label === 'Blog Post' && blogLoading && (
+                  <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6">
+                    <div className="flex items-center justify-center mb-6">
+                      <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
+                    </div>
+                    <div className="animate-pulse">
+                      <div className="h-6 w-1/3 bg-gray-200 rounded mb-4"></div>
+                      <div className="space-y-3">
+                        <div className="h-4 w-full bg-gray-200 rounded"></div>
+                        <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
+                        <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
+                        <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {active.label === 'Blog Post' && blogError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{blogError}</div>
+                )}
+
                 {/* When refined exists: show split view; else show only original */}
                 {active.label !== 'Twitter' && active.label !== 'Twitter with thread' && refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
@@ -476,7 +616,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     <div className="text-sm text-gray-500 mb-2">Original</div>
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                       <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                        {getDisplayForKey(active.key)}
+                        {active.label === 'Podcast Script' && podcastContent ? podcastContent : active.label === 'Blog Post' && blogContent ? blogContent : getDisplayForKey(active.key)}
                       </pre>
                     </div>
                   </div>

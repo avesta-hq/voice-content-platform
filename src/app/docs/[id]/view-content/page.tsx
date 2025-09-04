@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ContentDisplay from "@/components/ContentDisplay";
 import { DocumentService } from "@/lib/documentService";
@@ -14,12 +14,16 @@ export default function ViewContentPage() {
   const [content, setContent] = useState<PlatformContent[] | null>(null);
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const hasLoadedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!UserService.isAuthenticated()) {
       router.replace("/");
       return;
     }
+
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
 
     const run = async () => {
       try {
@@ -33,13 +37,13 @@ export default function ViewContentPage() {
 
         if (doc.generatedContent) {
           const items: PlatformContent[] = [
-            { platform: "Blog Post", content: doc.generatedContent.blog, formatted: true },
             { platform: "LinkedIn", content: doc.generatedContent.linkedin, formatted: true },
             { platform: "Twitter", content: doc.generatedContent.twitter, formatted: true },
             { platform: "Podcast Script", content: doc.generatedContent.podcast, formatted: true },
+            { platform: "Blog Post", content: doc.generatedContent.blog, formatted: true },
           ];
           if (doc.generatedContent.twitterThread && doc.generatedContent.twitterThread.length > 0) {
-            items.splice(3, 0, { platform: "Twitter with thread", content: doc.generatedContent.twitterThread.join("\n\n"), formatted: true, twitterThread: doc.generatedContent.twitterThread });
+            items.splice(2, 0, { platform: "Twitter with thread", content: doc.generatedContent.twitterThread.join("\n\n"), formatted: true, twitterThread: doc.generatedContent.twitterThread });
           }
           setContent(items);
         } else {
@@ -53,7 +57,7 @@ export default function ViewContentPage() {
     };
 
     if (docId) run();
-  }, [docId, router]);
+  }, [docId]);
 
   if (!UserService.isAuthenticated()) return null;
 
