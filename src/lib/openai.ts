@@ -156,6 +156,7 @@ export async function generateContent(request: ContentGenerationRequest): Promis
 async function generateTwitterThread(originalText: string, inputLanguage: string, outputLanguage: string, fallbackSource?: string): Promise<string[]> {
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
+  console.log('process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT-->>>>', process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT);
   const threadPrompt = (process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT || 'Create a numbered Twitter thread.')
     .replace('{inputLang}', inputLangName)
     .replace('{outputLang}', outputLangName)
