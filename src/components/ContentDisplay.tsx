@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformContent } from '@/types';
 import { DocumentService } from '@/lib/documentService';
+import { Pencil } from 'lucide-react';
 
 interface ContentDisplayProps {
   originalText: string;
@@ -51,6 +52,13 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
   const [errorByPlatform, setErrorByPlatform] = useState<{ [key: string]: string | null }>({});
   const [isSaving, setIsSaving] = useState<{ [key: string]: boolean }>({});
   const [refinedSaved, setRefinedSaved] = useState<{ [key: string]: boolean }>({});
+  // Edited content state per platform (persisted)
+  const [editedByPlatform, setEditedByPlatform] = useState<{ [key: string]: string }>({});
+  const [isEditOpen, setIsEditOpen] = useState<boolean>(false);
+  const [editPlatformKey, setEditPlatformKey] = useState<string>('');
+  const [editText, setEditText] = useState<string>('');
+  const [isEditSaving, setIsEditSaving] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string>('');
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -78,7 +86,11 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
   const active = tabs.find(t => t.key === activeTab) || tabs[0];
 
   const getOriginalForKey = (key: string) => tabs.find(t => t.key === key)?.content || '';
-  const getDisplayForKey = (key: string) => refinedByPlatform[key]?.text || getOriginalForKey(key);
+  const getDisplayForKey = (key: string) => {
+    if (editedByPlatform[key]) return editedByPlatform[key];
+    if (refinedByPlatform[key]?.text) return refinedByPlatform[key].text;
+    return getOriginalForKey(key);
+  };
 
   const platformSlugForKey = (key: string): 'blog' | 'linkedin' | 'twitter' | 'podcast' => {
     const tab = tabs.find(t => t.key === key);
@@ -368,14 +380,28 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     <h4 className="text-xl font-bold capitalize">{active.label}</h4>
                   </div>
                   <div className="flex items-center gap-3">
-                    {refinedByPlatform[active.key] && (
+                    {refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
                       <span className="text-xs bg-white/20 px-2 py-1 rounded">Refined{refinedSaved[active.key] ? ' • Saved' : ''}</span>
-                    )}
+                    ) : null}
                     <button
                       onClick={() => openCommentModal(active.key)}
                       className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-md text-sm font-semibold"
                     >
                       Refine this output
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditPlatformKey(active.key);
+                        setEditError('');
+                        // Seed edit text: prefer edited > refined (unsaved) > original
+                        setEditText(getDisplayForKey(active.key));
+                        setIsEditOpen(true);
+                      }}
+                      className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-md"
+                      title="Edit content"
+                      aria-label="Edit content"
+                    >
+                      <Pencil className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -384,7 +410,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
               {/* Content Body */}
               <div className="p-6 bg-white">
                 {/* When refined exists: show split view; else show only original */}
-                {refinedByPlatform[active.key] ? (
+                {refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
                     <div className="flex flex-col h-full">
                       <div className="text-sm text-gray-500 mb-2">Original</div>
@@ -409,7 +435,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                       </div>
                       <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px] flex-1">
                         <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                          {refinedByPlatform[active.key].text}
+                          {refinedByPlatform[active.key]?.text}
                         </pre>
                       </div>
                     </div>
@@ -419,7 +445,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     <div className="text-sm text-gray-500 mb-2">Original</div>
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                       <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                        {getOriginalForKey(active.key)}
+                        {getDisplayForKey(active.key)}
                       </pre>
                     </div>
                   </div>
@@ -562,6 +588,71 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
           </div>
         </div>
       )}
+
+      {/* Edit Content Modal */}
+      {isEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h4 className="text-lg font-semibold">Edit {tabs.find(t => t.key === editPlatformKey)?.label} content</h4>
+              <button onClick={() => setIsEditOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <div className="p-5">
+              {editError && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{editError}</div>}
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                rows={14}
+                className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="px-5 pb-5 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setIsEditOpen(false)}
+                className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    setIsEditSaving(true);
+                    setEditError('');
+                    const key = editPlatformKey;
+                    const platform = platformSlugForKey(key);
+                    const urlParts = window.location.pathname.split('/');
+                    const docId = urlParts[urlParts.indexOf('docs') + 1];
+                    await DocumentService.updateGeneratedPlatform(docId, platform, editText.trim());
+                    setEditedByPlatform(prev => ({ ...prev, [key]: editText.trim() }));
+                    setIsEditOpen(false);
+                  } catch (e) {
+                    setEditError(e instanceof Error ? e.message : 'Failed to save');
+                  } finally {
+                    setIsEditSaving(false);
+                  }
+                }}
+                disabled={isEditSaving || !editText.trim()}
+                className={`px-4 py-2 rounded-md text-white ${isEditSaving ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-60`}
+              >
+                {isEditSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex justify-center mt-8 mb-12">
+        <button
+          onClick={onBackToDashboard}
+          className="px-10 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold text-lg flex items-center space-x-3"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to Dashboard</span>
+        </button>
+      </div>
     </div>
   );
 }
