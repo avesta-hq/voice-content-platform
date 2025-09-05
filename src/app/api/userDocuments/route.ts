@@ -6,13 +6,28 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const status = searchParams.get('status') as 'draft' | 'completed' | null;
 
     if (!userId) {
       return NextResponse.json({ error: 'userId parameter is required' }, { status: 400 });
     }
 
-    const userDocuments = await hybridStorageService.getUserDocuments(userId);
-    return NextResponse.json(userDocuments);
+    let userDocuments: UserDocument[];
+
+    if (status === 'completed') {
+      // Fetch from blog.json (completed documents)
+      userDocuments = await hybridStorageService.getCompletedDocuments(userId);
+    } else if (status === 'draft') {
+      // Fetch from db.json (draft documents) and filter for drafts only
+      const allDrafts = await hybridStorageService.getUserDocuments(userId);
+      userDocuments = allDrafts.filter(doc => (doc.status || 'draft') === 'draft');
+    } else {
+      // Default behavior: fetch all draft documents (backward compatibility)
+      const allDrafts = await hybridStorageService.getUserDocuments(userId);
+      userDocuments = allDrafts.filter(doc => (doc.status || 'draft') === 'draft');
+    }
+
+    return NextResponse.json({ documents: userDocuments });
   } catch (error) {
     console.error('Error reading userDocuments:', error);
     return NextResponse.json({ error: 'Failed to fetch user documents' }, { status: 500 });
@@ -46,7 +61,8 @@ export async function POST(request: NextRequest) {
       totalDuration: 0,
       totalSessions: 0,
       wordCount: 0,
-      sessions: [] // Ensure sessions array is always present
+      sessions: [], // Ensure sessions array is always present
+      status: 'draft' // Default status for new documents
     };
 
     // Add to database

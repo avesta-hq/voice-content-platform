@@ -99,13 +99,17 @@ export class S3Service {
       console.log(`S3: Successfully downloaded ${key}`);
       return data;
     } catch (error) {
-      if (error instanceof Error && error.message.includes('NoSuchKey')) {
+      // Normalize AWS error shape and detect missing key without treating it as fatal
+      const err = error as { Code?: string; code?: string; name?: string; message?: string };
+      const code = err?.Code || err?.code || err?.name;
+      const message = err?.message || (error instanceof Error ? error.message : String(error));
+      if (code === 'NoSuchKey' || message.includes('NoSuchKey')) {
         console.log(`S3: Key ${key} not found, returning null`);
         return null;
       }
-      
+
       console.error(`S3: Error downloading ${key}:`, error);
-      throw new Error(`Failed to download ${key} from S3: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to download ${key} from S3: ${message}`);
     }
   }
 
@@ -180,13 +184,44 @@ export class S3Service {
   }
 
   async getVoiceSessions(documentId: string): Promise<VoiceSession[]> {
-    const db = await this.getDatabase();
-    return (db?.voiceSessions || []).filter((session: VoiceSession) => session.documentId === documentId);
+    // Read from both draft (db.json) and completed (blog.json) and merge
+    const [db, blogDb] = await Promise.all([
+      this.getDatabase(),
+      this.getBlogDatabase()
+    ]);
+    const fromDraft = (db?.voiceSessions || []).filter((session: VoiceSession) => session.documentId === documentId);
+    const fromCompleted = (blogDb?.voiceSessions || []).filter((session: VoiceSession) => session.documentId === documentId);
+    return [...fromDraft, ...fromCompleted];
   }
 
   async getUsers(): Promise<User[]> {
     const db = await this.getDatabase();
     return db?.users || [];
+  }
+
+  // Blog (completed documents) database methods
+  async getBlogDatabase(): Promise<DatabaseData | null> {
+    const blogData = await this.downloadJson('blog.json');
+    if (!blogData) {
+      // Create empty blog.json if it doesn't exist
+      const emptyDb: DatabaseData = {
+        userDocuments: [],
+        voiceSessions: [],
+        users: []
+      };
+      await this.saveBlogDatabase(emptyDb);
+      return emptyDb;
+    }
+    return blogData;
+  }
+
+  async saveBlogDatabase(data: DatabaseData): Promise<boolean> {
+    return this.uploadJson('blog.json', data);
+  }
+
+  async getCompletedDocuments(userId: string): Promise<UserDocument[]> {
+    const blogDb = await this.getBlogDatabase();
+    return (blogDb?.userDocuments || []).filter((doc: UserDocument) => String(doc.userId) === String(userId));
   }
 
   // Health check method

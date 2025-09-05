@@ -10,6 +10,11 @@ export interface StorageService {
   getVoiceSessions(documentId: string): Promise<VoiceSession[]>;
   getUsers(): Promise<User[]>;
   healthCheck(): Promise<HealthCheckResult | HybridHealthCheckResult>;
+  
+  // Blog (completed documents) storage methods
+  getBlogDatabase(): Promise<DatabaseData | null>;
+  saveBlogDatabase(data: DatabaseData): Promise<boolean>;
+  getCompletedDocuments(userId: string): Promise<UserDocument[]>;
 }
 
 export interface HealthCheckResult {
@@ -31,9 +36,11 @@ export interface HybridHealthCheckResult {
 
 export class LocalFileService implements StorageService {
   private dbPath: string;
+  private blogPath: string;
 
   constructor() {
     this.dbPath = path.join(process.cwd(), 'db.json');
+    this.blogPath = path.join(process.cwd(), 'blog.json');
   }
 
   async getDatabase(): Promise<DatabaseData | null> {
@@ -63,13 +70,56 @@ export class LocalFileService implements StorageService {
   }
 
   async getVoiceSessions(documentId: string): Promise<VoiceSession[]> {
-    const db = await this.getDatabase();
-    return (db?.voiceSessions || []).filter((session: VoiceSession) => session.documentId === documentId);
+    // Read from both draft (db.json) and completed (blog.json) and merge
+    const [db, blogDb] = await Promise.all([
+      this.getDatabase(),
+      this.getBlogDatabase().catch(() => null)
+    ]);
+
+    const fromDraft = (db?.voiceSessions || []).filter((session: VoiceSession) => session.documentId === documentId);
+    const fromCompleted = (blogDb?.voiceSessions || []).filter((session: VoiceSession) => session.documentId === documentId);
+    return [...fromDraft, ...fromCompleted];
   }
 
   async getUsers(): Promise<User[]> {
     const db = await this.getDatabase();
     return db?.users || [];
+  }
+
+  async getBlogDatabase(): Promise<DatabaseData | null> {
+    try {
+      const blogContent = await fs.readFile(this.blogPath, 'utf-8');
+      return JSON.parse(blogContent) as DatabaseData;
+    } catch (error) {
+      // If blog.json doesn't exist, create empty structure
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        const emptyDb: DatabaseData = {
+          userDocuments: [],
+          voiceSessions: [],
+          users: []
+        };
+        await this.saveBlogDatabase(emptyDb);
+        return emptyDb;
+      }
+      console.error('Local: Error reading blog database:', error);
+      throw new Error('Failed to read local blog database');
+    }
+  }
+
+  async saveBlogDatabase(data: DatabaseData): Promise<boolean> {
+    try {
+      await fs.writeFile(this.blogPath, JSON.stringify(data, null, 2));
+      console.log('Local: Blog database saved successfully');
+      return true;
+    } catch (error) {
+      console.error('Local: Error saving blog database:', error);
+      throw new Error('Failed to save local blog database');
+    }
+  }
+
+  async getCompletedDocuments(userId: string): Promise<UserDocument[]> {
+    const blogDb = await this.getBlogDatabase();
+    return (blogDb?.userDocuments || []).filter((doc: UserDocument) => String(doc.userId) === String(userId));
   }
 
   async healthCheck(): Promise<HealthCheckResult> {
@@ -176,6 +226,45 @@ export class HybridStorageService implements StorageService {
       }
     } else {
       return await this.localService.getUsers();
+    }
+  }
+
+  async getBlogDatabase(): Promise<DatabaseData | null> {
+    if (this.useS3) {
+      try {
+        return await this.s3Service.getBlogDatabase();
+      } catch (error) {
+        console.warn('S3 getBlogDatabase failed, falling back to local:', error);
+        return await this.localService.getBlogDatabase();
+      }
+    } else {
+      return await this.localService.getBlogDatabase();
+    }
+  }
+
+  async saveBlogDatabase(data: DatabaseData): Promise<boolean> {
+    if (this.useS3) {
+      try {
+        return await this.s3Service.saveBlogDatabase(data);
+      } catch (error) {
+        console.warn('S3 saveBlogDatabase failed, falling back to local:', error);
+        return await this.localService.saveBlogDatabase(data);
+      }
+    } else {
+      return await this.localService.saveBlogDatabase(data);
+    }
+  }
+
+  async getCompletedDocuments(userId: string): Promise<UserDocument[]> {
+    if (this.useS3) {
+      try {
+        return await this.s3Service.getCompletedDocuments(userId);
+      } catch (error) {
+        console.warn('S3 getCompletedDocuments failed, falling back to local:', error);
+        return await this.localService.getCompletedDocuments(userId);
+      }
+    } else {
+      return await this.localService.getCompletedDocuments(userId);
     }
   }
 

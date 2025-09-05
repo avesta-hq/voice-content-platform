@@ -348,9 +348,10 @@ export class DocumentService {
           throw new Error(`Failed to check title uniqueness: ${response.status}`);
         }
         
-        const documents: UserDocument[] = await response.json();
-        
-        return !documents.some(doc => 
+        const raw = await response.json();
+        const documents: UserDocument[] = Array.isArray(raw) ? raw : (raw?.documents || []);
+
+        return !documents.some(doc =>
           doc.title.toLowerCase() === title.toLowerCase() && 
           (!excludeDocumentId || doc.id !== excludeDocumentId)
         );
@@ -488,6 +489,63 @@ export class DocumentService {
         throw new Error(`Failed to save refined content: ${response.status}`);
       }
       return response.json();
+    });
+  }
+
+  // Document status management methods
+  static async markDocumentCompleted(documentId: string): Promise<UserDocument> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}/status`, {
+        method: 'PUT',
+        headers: DocumentService.getAuthHeaders(),
+        body: JSON.stringify({ status: 'completed' })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to mark document as completed: ${response.status}`);
+      }
+      return response.json();
+    });
+  }
+
+  static async markDocumentDraft(documentId: string): Promise<UserDocument> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}/status`, {
+        method: 'PUT',
+        headers: DocumentService.getAuthHeaders(),
+        body: JSON.stringify({ status: 'draft' })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to mark document as draft: ${response.status}`);
+      }
+      return response.json();
+    });
+  }
+
+  static async getCompletedDocuments(userId: number): Promise<UserDocument[]> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments?status=completed&userId=${userId}`, {
+        method: 'GET',
+        headers: DocumentService.getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch completed documents: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.documents || [];
+    });
+  }
+
+  static async getDraftDocuments(userId: number): Promise<UserDocument[]> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments?status=draft&userId=${userId}`, {
+        method: 'GET',
+        headers: DocumentService.getAuthHeaders()
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch draft documents: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.documents || [];
     });
   }
 

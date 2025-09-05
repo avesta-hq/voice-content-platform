@@ -17,10 +17,11 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [showSessionRecorder, setShowSessionRecorder] = useState(false);
-  const [hasChangesAfterGeneration, setHasChangesAfterGeneration] = useState(false);
+  const [hasChangesAfterGeneration, setHasChangesAfterGeneration] = useState(false); // retained for future use
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const hasLoadedRef = useRef<string | null>(null);
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
+  const [isStatusChanging, setIsStatusChanging] = useState<boolean>(false);
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -188,8 +189,10 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const inputLang = getLanguageByCode(document.inputLanguage);
   const outputLang = getLanguageByCode(document.outputLanguage);
 
+  const isCompleted = (document.status || 'draft') === 'completed';
+
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="relative max-w-6xl mx-auto p-6">
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded shadow-lg text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
@@ -211,29 +214,102 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           <h1 className="text-3xl font-bold text-gray-800">{document.title}</h1>
         </div>
         <div className="flex space-x-3">
-          <button
-            onClick={() => setShowSessionRecorder(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            + Add Session
-          </button>
-          {/* Actions: always allow Generate if sessions exist; View when content exists */}
-          {document.sessions.length > 0 && (
-            <button
-              onClick={() => onGenerateContent(documentId)}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-              title="Generate content (overwrites saved content if present)"
-            >
-              Generate Content
-            </button>
-          )}
-          {document.hasGeneratedContent && document.generatedContent && (
-            <button
-              onClick={() => onViewContent && onViewContent(documentId)}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
-            >
-              View Content
-            </button>
+          {/* Completed: read-only header actions */}
+          {isCompleted ? (
+            <>
+              {document.hasGeneratedContent && document.generatedContent && (
+                <button
+                  onClick={() => onViewContent && onViewContent(documentId)}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                >
+                  View Content
+                </button>
+              )}
+              {/* Status switch (Completed -> Draft) */}
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                <span className="text-xs text-gray-600">Status</span>
+                <span className="text-xs text-gray-500">Draft</span>
+                <button
+                  role="switch"
+                  aria-checked={true}
+                  aria-label="Toggle document status"
+                  disabled={isStatusChanging}
+                  onClick={async () => {
+                    try {
+                      setIsStatusChanging(true);
+                      await DocumentService.markDocumentDraft(documentId);
+                      // Update local state without full reload
+                      setDocument(prev => (prev ? { ...prev, status: 'draft' } : prev));
+                    } catch (e) {
+                      alert('Failed to move back to draft');
+                    } finally {
+                      setIsStatusChanging(false);
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full ${isStatusChanging ? 'bg-emerald-400 opacity-80' : 'bg-emerald-600'} transition-colors`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition translate-x-5`} />
+                </button>
+                <span className="text-xs text-gray-900">Completed</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowSessionRecorder(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                + Add Session
+              </button>
+              {/* Actions: always allow Generate if sessions exist; View when content exists */}
+              {document.sessions.length > 0 && (
+                <button
+                  onClick={() => onGenerateContent(documentId)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  title="Generate content (overwrites saved content if present)"
+                >
+                  Generate Content
+                </button>
+              )}
+              {document.hasGeneratedContent && document.generatedContent && (
+                <button
+                  onClick={() => onViewContent && onViewContent(documentId)}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                >
+                  View Content
+                </button>
+              )}
+              {/* Status switch (Draft -> Completed) - only if generated once */}
+              {document.hasGeneratedContent && (
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                  <span className="text-xs text-gray-600">Status</span>
+                  <span className="text-xs text-gray-500">Draft</span>
+                  <button
+                    role="switch"
+                    aria-checked={false}
+                    aria-label="Toggle document status"
+                    aria-disabled={isStatusChanging}
+                    disabled={isStatusChanging}
+                    onClick={async () => {
+                      if (isStatusChanging) return;
+                      try {
+                        setIsStatusChanging(true);
+                        await DocumentService.markDocumentCompleted(documentId);
+                        setDocument(prev => (prev ? { ...prev, status: 'completed' } : prev));
+                      } catch (e) {
+                        alert('Failed to mark as completed');
+                      } finally {
+                        setIsStatusChanging(false);
+                      }
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isStatusChanging ? 'bg-gray-200 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition translate-x-1`} />
+                  </button>
+                  <span className="text-xs text-gray-900">Completed</span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -268,7 +344,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
       )}
 
       {/* Session Recorder */}
-      {showSessionRecorder && (
+      {!isCompleted && showSessionRecorder && (
         <div className="mb-8">
           <SessionRecorder
             inputLanguage={document.inputLanguage}
@@ -346,23 +422,27 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                       </div>
                     </div>
                     <div className="flex items-center text-sm text-gray-500 gap-1 sm:gap-2">
-                       <span>{session.transcript.trim().split(/\s+/).length} words</span>
-                       <button
-                        onClick={() => setEditSessionId(session.id)}
-                        className="text-blue-600 hover:text-blue-700 transition-colors p-1 icon-button"
-                        title="Edit session"
-                        aria-label="Edit session"
-                      >
-                        <Pencil className="h-5 w-5" />
-                      </button>
-                       <button
-                        onClick={() => handleSessionDelete(session.id)}
-                        className="text-red-500 hover:text-red-600 transition-colors p-1 icon-button"
-                        title="Delete session"
-                        aria-label="Delete session"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                      <span>{session.transcript.trim().split(/\s+/).length} words</span>
+                      {!isCompleted && (
+                        <>
+                          <button
+                            onClick={() => setEditSessionId(session.id)}
+                            className="text-blue-600 hover:text-blue-700 transition-colors p-1 icon-button"
+                            title="Edit session"
+                            aria-label="Edit session"
+                          >
+                            <Pencil className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleSessionDelete(session.id)}
+                            className="text-red-500 hover:text-red-600 transition-colors p-1 icon-button"
+                            title="Delete session"
+                            aria-label="Delete session"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -409,9 +489,21 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           }}
         />
       )}
+
+      {/* Full-screen overlay loader during status change */}
+      {isStatusChanging && (
+        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/90 rounded-xl shadow-xl px-6 py-5 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600 mb-3"></div>
+            <div className="text-sm text-gray-700">Applying status change…</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// Overlay loader shown during status changes; keeps background visible but blocks interaction
 
 import SessionRecorder from './SessionRecorder';
 import SessionEditModal from './SessionEditModal';

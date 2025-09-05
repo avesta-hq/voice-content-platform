@@ -126,6 +126,9 @@ export interface UserDocument {
   generatedAt?: string;
   generatedMeta?: GeneratedMeta;
   requiresRegeneration?: boolean;
+
+  // Document Status (defaults to 'draft' for backward compatibility)
+  status?: 'draft' | 'completed';
 }
 
 export interface VoiceSession {

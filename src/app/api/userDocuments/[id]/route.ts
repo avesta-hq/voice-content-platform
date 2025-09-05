@@ -9,20 +9,26 @@ export async function GET(
   try {
     const { id } = await params;
     
-    // Get current database using hybrid storage
+    // Try draft DB first
     const db = await hybridStorageService.getDatabase();
     
-    if (!db || !db.userDocuments) {
-      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    if (db && db.userDocuments) {
+      const document = (db.userDocuments || []).find((doc: UserDocument) => doc.id === id);
+      if (document) {
+        return NextResponse.json(document);
+      }
     }
-    
-    const document = (db.userDocuments || []).find((doc: UserDocument) => doc.id === id);
-    
-    if (!document) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+
+    // Fallback to completed DB (blog.json)
+    const blogDb = await hybridStorageService.getBlogDatabase();
+    if (blogDb && blogDb.userDocuments) {
+      const document = (blogDb.userDocuments || []).find((doc: UserDocument) => doc.id === id);
+      if (document) {
+        return NextResponse.json(document);
+      }
     }
-    
-    return NextResponse.json(document);
+
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
   } catch (error) {
     console.error('Error reading userDocument:', error);
     return NextResponse.json({ error: 'Failed to fetch document' }, { status: 500 });
@@ -37,7 +43,7 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    // Get current database using hybrid storage
+    // Only allow edits in draft database
     const db = await hybridStorageService.getDatabase();
     
     if (!db || !db.userDocuments) {
@@ -47,7 +53,7 @@ export async function PUT(
     const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (documentIndex === -1) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Document not found in draft database' }, { status: 404 });
     }
     
     db.userDocuments[documentIndex] = {
@@ -74,7 +80,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    // Get current database using hybrid storage
+    // Only allow edits in draft database
     const db = await hybridStorageService.getDatabase();
     
     if (!db || !db.userDocuments) {
@@ -84,7 +90,7 @@ export async function PATCH(
     const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (documentIndex === -1) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Document not found in draft database' }, { status: 404 });
     }
 
     // Deep merge for generatedContent to avoid overwriting sibling platforms

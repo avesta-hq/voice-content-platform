@@ -35,13 +35,15 @@ export async function POST(request: NextRequest) {
     db.voiceSessions = db.voiceSessions || [];
     db.voiceSessions.push(newSession);
 
-    // Invalidate generated content for the parent document (mark requiresRegeneration but keep existing content)
+    // Mark that regeneration is needed, but DO NOT set hasGeneratedContent to true
     if (db.userDocuments && Array.isArray(db.userDocuments)) {
       const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(newSession.documentId));
       if (docIndex !== -1) {
+        const existing = db.userDocuments[docIndex];
         db.userDocuments[docIndex] = {
-          ...db.userDocuments[docIndex],
-          hasGeneratedContent: true,
+          ...existing,
+          // preserve existing hasGeneratedContent as-is
+          hasGeneratedContent: existing.hasGeneratedContent,
           requiresRegeneration: true,
           updatedAt: new Date().toISOString()
         };

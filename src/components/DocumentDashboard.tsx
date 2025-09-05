@@ -19,54 +19,48 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'draft' | 'completed'>('draft');
   const hasLoadedRef = useRef(false);
+  const [isStatusChanging, setIsStatusChanging] = useState<boolean>(false);
+  const [overlayMessage, setOverlayMessage] = useState<string>('Applying status change…');
 
-  const loadDocuments = useCallback(async () => {
-    // Prevent multiple API calls
-    if (hasLoadedRef.current) {
+  const loadDocuments = useCallback(async (forceReload = false) => {
+    // Prevent multiple API calls unless forced
+    if (hasLoadedRef.current && !forceReload) {
       console.log('🚫 Documents already loaded, skipping API call');
       return;
     }
     
     try {
-      console.log('🔄 Loading documents...'); // Debug log
-      hasLoadedRef.current = true;
+      console.log(`🔄 Loading ${activeTab} documents...`); // Debug log
+      if (!forceReload) hasLoadedRef.current = true;
       setIsLoading(true);
       const currentUser = UserService.getCurrentUser();
       if (currentUser) {
         console.log('👤 Current user:', currentUser.id); // Debug log
-        const userDocs = await DocumentService.getUserDocuments(currentUser.id);
-        console.log('📚 Documents loaded:', userDocs.length); // Debug log
-        // Render directly from userDocuments; avoid per-doc enrichment calls
+        let userDocs: UserDocument[];
+        
+        if (activeTab === 'completed') {
+          userDocs = await DocumentService.getCompletedDocuments(currentUser.id);
+        } else {
+          userDocs = await DocumentService.getDraftDocuments(currentUser.id);
+        }
+        
+        console.log(`📚 ${activeTab} documents loaded:`, userDocs.length); // Debug log
         setDocuments(userDocs);
       }
     } catch (err) {
-      setError('Failed to load documents');
+      setError(`Failed to load ${activeTab} documents`);
       console.error('Load documents error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   // Function to manually refresh documents (for delete operations)
   const refreshDocuments = useCallback(async () => {
-    try {
-      console.log('🔄 Refreshing documents...'); // Debug log
-      setIsLoading(true);
-      const currentUser = UserService.getCurrentUser();
-      if (currentUser) {
-        const userDocs = await DocumentService.getUserDocuments(currentUser.id);
-        console.log('📚 Documents refreshed:', userDocs.length); // Debug log
-        // Render directly from userDocuments; avoid per-doc enrichment calls
-        setDocuments(userDocs);
-      }
-    } catch (err) {
-      setError('Failed to refresh documents');
-      console.error('Refresh documents error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    await loadDocuments(true);
+  }, [loadDocuments]);
 
   useEffect(() => {
     console.log('🚀 DocumentDashboard useEffect triggered, hasLoadedRef.current:', hasLoadedRef.current);
@@ -84,6 +78,12 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
     }
   }, [reloadToken, loadDocuments]);
 
+  // Reload documents when tab changes
+  useEffect(() => {
+    hasLoadedRef.current = false;
+    loadDocuments();
+  }, [activeTab, loadDocuments]);
+
   const handleDeleteDocument = async (documentId: string) => {
     // Get document title for confirmation
     const document = documents.find(doc => doc.id === documentId);
@@ -91,12 +91,34 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
     
     if (window.confirm(`Are you sure you want to delete "${documentTitle}"?\n\nThis action will permanently remove the document and all its sessions. This cannot be undone.`)) {
       try {
+        setOverlayMessage('Deleting document…');
+        setIsStatusChanging(true);
         await DocumentService.deleteDocument(documentId);
         await refreshDocuments(); // Use refresh instead of loadDocuments
       } catch (err) {
         setError('Failed to delete document');
         console.error('Delete document error:', err);
+      } finally {
+        setIsStatusChanging(false);
       }
+    }
+  };
+
+  const handleStatusChange = async (documentId: string, newStatus: 'draft' | 'completed') => {
+    try {
+      setOverlayMessage('Applying status change…');
+      setIsStatusChanging(true);
+      if (newStatus === 'completed') {
+        await DocumentService.markDocumentCompleted(documentId);
+      } else {
+        await DocumentService.markDocumentDraft(documentId);
+      }
+      await refreshDocuments();
+    } catch (err) {
+      setError(`Failed to change document status to ${newStatus}`);
+      console.error('Status change error:', err);
+    } finally {
+      setIsStatusChanging(false);
     }
   };
 
@@ -120,17 +142,6 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
     doc.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (isLoading) {
-    return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your documents...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
@@ -148,23 +159,53 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
         </button>
       </div>
 
-      {/* Search - Always visible */}
+      {/* Tabs */}
       <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search documents by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('draft')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'draft'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Draft Documents
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'completed'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Completed Documents
+            </button>
+          </nav>
         </div>
       </div>
+
+      {/* Search - Only show when there are documents in the current tab */}
+      {documents.length > 0 && (
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search documents by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -174,21 +215,34 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
       )}
 
       {/* Documents Grid */}
-      {filteredDocuments.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your documents...</p>
+        </div>
+      ) : filteredDocuments.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-4">
             <svg className="mx-auto h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No documents yet</h3>
-          <p className="text-gray-500 mb-6">Create your first document to get started with voice content creation</p>
-          <button
-            onClick={onCreateNew}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            Create Your First Document
-          </button>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {activeTab === 'completed' ? 'No completed documents yet' : 'No documents yet'}
+          </h3>
+          <p className="text-gray-500 mb-6">
+            {activeTab === 'completed'
+              ? 'Documents you mark as completed will appear here.'
+              : 'Create your first document to get started with voice content creation'}
+          </p>
+          {activeTab === 'draft' && (
+            <button
+              onClick={onCreateNew}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Create Your First Document
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -252,45 +306,121 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
 
                   {/* Action Buttons - Fixed at bottom */}
                   <div className="mt-auto">
-                    {/* Use a fixed 3-slot grid on md+ to normalize heights; 2-slot on small screens */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 min-h-[44px]">
-                      <button
-                        onClick={() => onEditDocument(document.id)}
-                        className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                      >
-                        Edit Document
-                      </button>
+                    {activeTab === 'draft' ? (
+                      /* Draft document actions */
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 min-h-[44px]">
+                          <button
+                            onClick={() => onEditDocument(document.id)}
+                            className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                          >
+                            Edit Document
+                          </button>
 
-                      {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) ? (
-                        <button
-                          onClick={() => onGenerateContent(document.id)}
-                          className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                          title="Generate content (overwrites saved content if present)"
-                        >
-                          Generate Content
-                        </button>
-                      ) : (
-                        /* placeholder to keep alignment when no generate button */
-                        <span className="hidden md:block"></span>
-                      )}
+                          {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) ? (
+                            <button
+                              onClick={() => onGenerateContent(document.id)}
+                              className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                              title="Generate content (overwrites saved content if present)"
+                            >
+                              Generate Content
+                            </button>
+                          ) : (
+                            /* placeholder to keep alignment when no generate button */
+                            <span className="hidden md:block"></span>
+                          )}
 
-                      {document.hasGeneratedContent && document.generatedContent ? (
-                        <button
-                          onClick={() => onViewContent && onViewContent(document.id)}
-                          className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                        >
-                          View Content
-                        </button>
-                      ) : (
-                        /* placeholder to keep alignment when no view button */
-                        <span className="hidden md:block"></span>
-                      )}
-                    </div>
+                          {document.hasGeneratedContent && document.generatedContent ? (
+                            <button
+                              onClick={() => onViewContent && onViewContent(document.id)}
+                              className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                            >
+                              View Content
+                            </button>
+                          ) : (
+                            /* placeholder to keep alignment when no view button */
+                            <span className="hidden md:block"></span>
+                          )}
+                        </div>
+                        
+                        {/* Status switch for draft documents (only after first generation) */}
+                        {document.hasGeneratedContent && (
+                          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                            <span className="text-[11px] sm:text-xs text-gray-600">Status</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] sm:text-xs text-gray-500">Draft</span>
+                              <button
+                                role="switch"
+                                aria-checked={false}
+                                aria-label="Toggle document status"
+                                aria-disabled={isStatusChanging}
+                                disabled={isStatusChanging}
+                                onClick={() => {
+                                  if (isStatusChanging) return;
+                                  handleStatusChange(document.id, 'completed');
+                                }}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isStatusChanging ? 'bg-gray-200 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
+                              >
+                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition translate-x-1`} />
+                              </button>
+                              <span className="text-[11px] sm:text-xs text-gray-900">Completed</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Completed document actions */
+                      <div className="space-y-2">
+                        {/* Primary actions for completed docs */}
+                        <div className="grid grid-cols-2 gap-2 min-h-[44px]">
+                          <button
+                            onClick={() => onEditDocument(document.id)}
+                            className="w-full min-h-[36px] flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                          >
+                            View Document
+                          </button>
+                          <button
+                            onClick={() => onViewContent && onViewContent(document.id)}
+                            className="w-full min-h-[36px] flex items-center justify-center px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
+                          >
+                            View Content
+                          </button>
+                        </div>
+
+                        {/* Status switch for completed documents (full width, consistent with Draft tab) */}
+                        <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                          <span className="text-[11px] sm:text-xs text-gray-600">Status</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] sm:text-xs text-gray-500">Draft</span>
+                            <button
+                              role="switch"
+                              aria-checked={true}
+                              aria-label="Toggle document status"
+                              onClick={() => handleStatusChange(document.id, 'draft')}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full bg-emerald-600 transition-colors`}
+                            >
+                              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition translate-x-5`} />
+                            </button>
+                            <span className="text-[11px] sm:text-xs text-gray-900">Completed</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Full-screen overlay loader during status change */}
+      {isStatusChanging && (
+        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/90 rounded-xl shadow-xl px-6 py-5 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600 mb-3"></div>
+            <div className="text-sm text-gray-700">{overlayMessage}</div>
+          </div>
         </div>
       )}
     </div>
