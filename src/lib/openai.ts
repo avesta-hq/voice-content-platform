@@ -119,6 +119,32 @@ export async function generateContent(request: ContentGenerationRequest): Promis
     const modelName = process.env.OPENAI_MODEL_NAME || "gpt-4";
     const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
 
+    const baseMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+      {
+        role: "system",
+        content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Your job is to convert text from {inputLang} into {outputLang} while preserving the EXACT original meaning, context, and intent. Do not add new information, opinions, or interpretations. Only reformat and restructure the existing content. If the input and output languages are different, provide an accurate translation that maintains the original message.')
+          .replace('{inputLang}', inputLangName)
+          .replace('{outputLang}', outputLangName)
+      },
+      { role: "user", content: prompt }
+    ];
+
+    // For long-form platforms like blog, avoid hard-capping output tokens and auto-continue if truncated
+    if (platform === 'blog') {
+      try {
+        return await chatCompleteWithContinuation(baseMessages, modelName, isGpt5Model ? undefined : 0.3);
+      } catch (e) {
+        // Fallback: if context too long, chunk the input and stitch results
+        const message = e instanceof Error ? e.message.toLowerCase() : '';
+        const looksContextError = message.includes('context') || message.includes('maximum context') || message.includes('token');
+        if (looksContextError) {
+          return await generateBlogByChunks(originalText, inputLanguage, outputLanguage, blogPrompt);
+        }
+        throw e;
+      }
+    }
+
+    // Default behavior for other platforms (keep conservative max_tokens)
     const basePayload: {
       model: string;
       messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
@@ -126,26 +152,14 @@ export async function generateContent(request: ContentGenerationRequest): Promis
       temperature?: number;
     } = {
       model: modelName,
-      messages: [
-        {
-          role: "system",
-          content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Your job is to convert text from {inputLang} into {outputLang} while preserving the EXACT original meaning, context, and intent. Do not add new information, opinions, or interpretations. Only reformat and restructure the existing content. If the input and output languages are different, provide an accurate translation that maintains the original message.')
-            .replace('{inputLang}', inputLangName)
-            .replace('{outputLang}', outputLangName)
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
+      messages: baseMessages
     };
     if (!isGpt5Model) {
-      basePayload.max_tokens = 1000;
+      basePayload.max_tokens = 4000;
       basePayload.temperature = 0.3;
     }
 
     const completion = await openai.chat.completions.create(basePayload);
-
     return completion.choices[0]?.message?.content || 'Error generating content';
   } catch (error) {
     console.error('OpenAI API error:', error);
@@ -153,10 +167,90 @@ export async function generateContent(request: ContentGenerationRequest): Promis
   }
 }
 
+// Calls chat completions and automatically continues if output is cut due to token limit.
+// Aggregates all parts into one string. Uses minimal temperature when provided.
+async function chatCompleteWithContinuation(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  modelName: string,
+  temperature?: number
+): Promise<string> {
+  let all = '';
+  let convo = messages.slice();
+  const maxTurns = 10;
+  for (let turn = 0; turn < maxTurns; turn++) {
+    const payload: {
+      model: string;
+      messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+      temperature?: number;
+    } = {
+      model: modelName,
+      messages: convo,
+    };
+    if (typeof temperature === 'number') payload.temperature = temperature;
+
+    const completion = await openai.chat.completions.create(payload);
+    const part = completion.choices[0]?.message?.content || '';
+    const finish = completion.choices[0]?.finish_reason || '';
+    all += (all && part ? '\n\n' : '') + part;
+
+    if (finish !== 'length' && finish !== 'content_filter') {
+      break;
+    }
+
+    // Ask the model to continue from where it left off without repeating
+    convo = [...convo, { role: 'assistant', content: part }, { role: 'user', content: 'Continue from where you left off. Do not repeat any text. Continue verbatim.' }];
+  }
+  return all.trim();
+}
+
+// Fallback for extremely long inputs: chunk the original text and stitch results.
+// Each chunk is converted into a corresponding blog section.
+async function generateBlogByChunks(
+  originalText: string,
+  inputLanguage: string,
+  outputLanguage: string,
+  blogPromptTemplate: string
+): Promise<string> {
+  const inputLangName = getLanguageName(inputLanguage);
+  const outputLangName = getLanguageName(outputLanguage);
+  const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
+
+  const chunkSize = 8000; // characters; heuristic to stay well within context
+  const chunks: string[] = [];
+  for (let i = 0; i < originalText.length; i += chunkSize) {
+    chunks.push(originalText.slice(i, i + chunkSize));
+  }
+  const total = chunks.length;
+  const sections: string[] = [];
+  for (let i = 0; i < total; i++) {
+    const part = chunks[i];
+    const userPrompt = [
+      blogPromptTemplate
+        .replace('{inputLang}', inputLangName)
+        .replace('{outputLang}', outputLangName)
+        .replace('{originalText}', part),
+      `Note: This is part ${i + 1} of ${total} of the original transcript. Produce the corresponding section of the blog in ${outputLangName}. Maintain coherence and do not repeat earlier sections. Do not add introductions or conclusions specific to this part; those will emerge from the full concatenation.`,
+    ].join('\n\n');
+
+    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+      {
+        role: 'system',
+        content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Maintain exact meaning. Do not hallucinate.')
+          .replace('{inputLang}', inputLangName)
+          .replace('{outputLang}', outputLangName),
+      },
+      { role: 'user', content: userPrompt },
+    ];
+    const section = await chatCompleteWithContinuation(messages, modelName, 0.3);
+    sections.push(section.trim());
+  }
+  // Simple stitch with spacing; a later refinement pass could merge headings cleanly
+  return sections.join('\n\n');
+}
+
 async function generateTwitterThread(originalText: string, inputLanguage: string, outputLanguage: string, fallbackSource?: string): Promise<string[]> {
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
-  console.log('process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT-->>>>', process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT);
   const threadPrompt = (process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT || 'Create a numbered Twitter thread.')
     .replace('{inputLang}', inputLangName)
     .replace('{outputLang}', outputLangName)
@@ -267,7 +361,7 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
       ]
     };
     if (!isGpt5Model) {
-      basePayload.max_tokens = 1000;
+      basePayload.max_tokens = 4000;
       basePayload.temperature = 0.2;
     }
     const completion = await openai.chat.completions.create(basePayload);

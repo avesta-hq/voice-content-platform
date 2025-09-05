@@ -551,7 +551,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     <div className="flex items-center justify-center mb-4">
                       <div className="h-10 w-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" aria-label="Loading"></div>
                     </div>
-                    <p className="text-center text-sm text-gray-600 mb-6">Generating your podcast script… this may take ~20–40s.</p>
+                    <p className="text-center text-sm text-gray-600 mb-6">Generating your podcast script… this may take ~10–15s.</p>
 
                     {/* Simple waveform bars */}
                     <div className="flex items-end justify-center gap-1 h-16 mb-6">
@@ -634,7 +634,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     <div className="flex items-center justify-center mb-4">
                       <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" aria-label="Loading"></div>
                     </div>
-                    <p className="text-center text-sm text-gray-600 mb-6">Crafting your long-form blog post… this can take ~30–60s.</p>
+                    <p className="text-center text-sm text-gray-600 mb-6">Crafting your long-form blog post… this can take ~10–15s.</p>
 
                     <div className="animate-pulse">
                       {/* Title */}
@@ -701,140 +701,127 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                   </div>
                 )}
 
-                {/* When refined exists: show split view; else show only original */}
-                {active.label !== 'Twitter' && active.label !== 'Twitter with thread' && refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-                    <div className="flex flex-col h-full">
-                      <div className="text-sm text-gray-500 mb-2">Original</div>
-                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex-1">
-                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                          {getOriginalForKey(active.key)}
-                        </pre>
+                {/* While loading Blog/Podcast, hide main content and actions */}
+                {!(
+                  (active.label === 'Podcast Script' && podcastLoading) ||
+                  (active.label === 'Blog Post' && blogLoading)
+                ) && (
+                  <>
+                    {/* When refined exists: show split view; else show only original */}
+                    {active.label !== 'Twitter' && active.label !== 'Twitter with thread' && refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                        <div className="flex flex-col h-full">
+                          <div className="text-sm text-gray-500 mb-2">Original</div>
+                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex-1">
+                            <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
+                              {getOriginalForKey(active.key)}
+                            </pre>
+                          </div>
+                        </div>
+                        <div className="flex flex-col h-full">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-sm text-gray-500">Refined</div>
+                            {/* Reset to original temporarily disabled */}
+                            {false && (
+                              <button
+                                onClick={() => resetRefinement(active.key)}
+                                className="text-sm text-blue-600 hover:text-blue-700 underline"
+                              >
+                                Reset to original
+                              </button>
+                            )}
+                          </div>
+                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px] flex-1">
+                            <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{refinedByPlatform[active.key]?.text}</pre>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-sm text-gray-500">Refined</div>
-                        {/* Reset to original temporarily disabled */}
-                        {false && (
-                          <button
-                            onClick={() => resetRefinement(active.key)}
-                            className="text-sm text-blue-600 hover:text-blue-700 underline"
-                          >
-                            Reset to original
-                          </button>
-                        )}
+                    ) : (
+                      <div>
+                        <div className="text-sm text-gray-500 mb-2">Original</div>
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                          <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
+                            {active.label === 'Podcast Script' && podcastContent ? podcastContent : active.label === 'Blog Post' && blogContent ? blogContent : getDisplayForKey(active.key)}
+                          </pre>
+                        </div>
                       </div>
-                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px] flex-1">
-                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{refinedByPlatform[active.key]?.text}</pre>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-sm text-gray-500 mb-2">Original</div>
-                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                      <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                        {active.label === 'Podcast Script' && podcastContent ? podcastContent : active.label === 'Blog Post' && blogContent ? blogContent : getDisplayForKey(active.key)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Row: left (Copy/Download), right (Save new content) */}
-                <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      onClick={() => copyToClipboard(getDisplayForKey(active.key), active.key)}
-                      className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center space-x-2 ${
-                        copiedStates[active.key]
-                          ? 'bg-green-500 text-white cursor-default shadow-lg'
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transform hover:scale-105'
-                      }`}
-                      disabled={copiedStates[active.key]}
-                    >
-                      {copiedStates[active.key] ? (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          <span>Copy Content</span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Copy using Unicode bold button disabled; default copy now uses this approach */}
-                    {false && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(getDisplayForKey(active.key));
-                            setCopiedStates(prev => ({ ...prev, [active.key]: true }));
-                            setTimeout(() => setCopiedStates(prev => ({ ...prev, [active.key]: false })), 2000);
-                          } catch (e) {
-                            console.error('Styled copy failed', e);
-                          }
-                        }}
-                        className="px-6 py-3 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl hover:from-violet-600 hover:to-violet-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6" />
-                        </svg>
-                        <span>Copy with styling</span>
-                      </button>
                     )}
 
-                    <button
-                      onClick={() => downloadContent(getDisplayForKey(active.key), active.label)}
-                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span>Download</span>
-                    </button>
-                  </div>
+                    {/* Action Row: left (Copy/Download), right (Save new content) */}
+                    <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          onClick={() => copyToClipboard(getDisplayForKey(active.key), active.key)}
+                          className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center space-x-2 ${
+                            copiedStates[active.key]
+                              ? 'bg-green-500 text-white cursor-default shadow-lg'
+                              : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transform hover:scale-105'
+                          }`}
+                          disabled={copiedStates[active.key]}
+                        >
+                          {copiedStates[active.key] ? (
+                            <>
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                              <span>Copy Content</span>
+                            </>
+                          )}
+                        </button>
 
-                  {refinedByPlatform[active.key] && !refinedSaved[active.key] && (
-                    <div className="md:ml-auto">
-                      <button
-                        onClick={async () => {
-                          const key = active.key;
-                          const refined = refinedByPlatform[key]?.text;
-                          if (!refined) return;
-                          setIsSaving(prev => ({ ...prev, [key]: true }));
-                          try {
-                            const urlParts = window.location.pathname.split('/');
-                            const docId = urlParts[urlParts.indexOf('docs') + 1];
-                            const platform = platformSlugForKey(key);
-                            await DocumentService.updateGeneratedPlatform(docId, platform, refined);
-                            setRefinedSaved(prev => ({ ...prev, [key]: true }));
-                          } catch (e) {
-                            console.error(e);
-                            alert('Failed to save new content. Please try again.');
-                          } finally {
-                            setIsSaving(prev => ({ ...prev, [key]: false }));
-                          }
-                        }}
-                        disabled={isSaving[active.key]}
-                        className={`px-4 py-2 rounded-md text-sm font-semibold ${isSaving[active.key] ? 'bg-emerald-300 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`}
-                      >
-                        {isSaving[active.key] ? 'Saving…' : 'Save new content'}
-                      </button>
+                        <button
+                          onClick={() => downloadContent(getDisplayForKey(active.key), active.label)}
+                          className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Download</span>
+                        </button>
+                      </div>
+
+                      {refinedByPlatform[active.key] && !refinedSaved[active.key] && (
+                        <div className="md:ml-auto">
+                          <button
+                            onClick={async () => {
+                              const key = active.key;
+                              const refined = refinedByPlatform[key]?.text;
+                              if (!refined) return;
+                              setIsSaving(prev => ({ ...prev, [key]: true }));
+                              try {
+                                const urlParts = window.location.pathname.split('/');
+                                const docId = urlParts[urlParts.indexOf('docs') + 1];
+                                const platform = platformSlugForKey(key);
+                                await DocumentService.updateGeneratedPlatform(docId, platform, refined);
+                                setRefinedSaved(prev => ({ ...prev, [key]: true }));
+                              } catch (e) {
+                                console.error(e);
+                                alert('Failed to save new content. Please try again.');
+                              } finally {
+                                setIsSaving(prev => ({ ...prev, [key]: false }));
+                              }
+                            }}
+                            disabled={isSaving[active.key]}
+                            className={`px-4 py-2 rounded-md text-sm font-semibold ${isSaving[active.key] ? 'bg-emerald-300 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`}
+                          >
+                            {isSaving[active.key] ? 'Saving…' : 'Save new content'}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Inline error */}
-                {errorByPlatform[active.key] && (
-                  <div className="mt-4 text-red-600 text-sm">{errorByPlatform[active.key]}</div>
+                    {/* Inline error */}
+                    {errorByPlatform[active.key] && (
+                      <div className="mt-4 text-red-600 text-sm">{errorByPlatform[active.key]}</div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
