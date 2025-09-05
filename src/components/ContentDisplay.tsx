@@ -542,44 +542,163 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
                 {/* Podcast lazy generation states */}
                 {active.label === 'Podcast Script' && podcastLoading && (
-                  <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6">
-                    <div className="flex items-center justify-center mb-6">
-                      <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
+                  <div
+                    className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                  >
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="h-10 w-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" aria-label="Loading"></div>
                     </div>
-                    <div className="animate-pulse">
-                      <div className="h-6 w-1/3 bg-gray-200 rounded mb-4"></div>
-                      <div className="space-y-3">
-                        <div className="h-4 w-full bg-gray-200 rounded"></div>
-                        <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                        <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                        <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
+                    <p className="text-center text-sm text-gray-600 mb-6">Generating your podcast script… this may take ~20–40s.</p>
+
+                    {/* Simple waveform bars */}
+                    <div className="flex items-end justify-center gap-1 h-16 mb-6">
+                      <div className="w-2 bg-purple-200 rounded animate-pulse" style={{ height: '40%' }}></div>
+                      <div className="w-2 bg-purple-300 rounded animate-pulse" style={{ height: '70%' }}></div>
+                      <div className="w-2 bg-purple-400 rounded animate-pulse" style={{ height: '90%' }}></div>
+                      <div className="w-2 bg-purple-300 rounded animate-pulse" style={{ height: '65%' }}></div>
+                      <div className="w-2 bg-purple-200 rounded animate-pulse" style={{ height: '45%' }}></div>
+                    </div>
+
+                    <div className="space-y-5">
+                      <div className="animate-pulse">
+                        <div className="h-5 w-40 bg-gray-200 rounded mb-3"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 w-full bg-gray-200 rounded"></div>
+                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
+                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
+                        </div>
+                      </div>
+                      <div className="animate-pulse">
+                        <div className="h-5 w-44 bg-gray-200 rounded mb-3"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 w-full bg-gray-200 rounded"></div>
+                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
+                          <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
+                        </div>
+                      </div>
+                      <div className="animate-pulse">
+                        <div className="h-5 w-36 bg-gray-200 rounded mb-3"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
+                          <div className="h-4 w-8/12 bg-gray-200 rounded"></div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
                 {active.label === 'Podcast Script' && podcastError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{podcastError}</div>
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center justify-between gap-3">
+                    <span>{podcastError}</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          setPodcastError('');
+                          setPodcastLoading(true);
+                          const parts = window.location.pathname.split('/');
+                          const docId = parts[parts.indexOf('docs') + 1];
+                          const res = await fetch('/api/generate-podcast', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ documentId: docId })
+                          });
+                          if (!res.ok) {
+                            const j = await res.json().catch(() => null);
+                            throw new Error(j?.error || `Status ${res.status}`);
+                          }
+                          const data = await res.json();
+                          setPodcastContent(data.podcastScript || '');
+                        } catch (e) {
+                          setPodcastError(e instanceof Error ? e.message : 'Failed to generate');
+                        } finally {
+                          setPodcastLoading(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md"
+                    >
+                      Retry
+                    </button>
+                  </div>
                 )}
 
                 {/* Blog lazy generation states */}
                 {active.label === 'Blog Post' && blogLoading && (
-                  <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6">
-                    <div className="flex items-center justify-center mb-6">
-                      <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
+                  <div
+                    className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                  >
+                    <div className="flex items-center justify-center mb-4">
+                      <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" aria-label="Loading"></div>
                     </div>
+                    <p className="text-center text-sm text-gray-600 mb-6">Crafting your long-form blog post… this can take ~30–60s.</p>
+
                     <div className="animate-pulse">
-                      <div className="h-6 w-1/3 bg-gray-200 rounded mb-4"></div>
-                      <div className="space-y-3">
-                        <div className="h-4 w-full bg-gray-200 rounded"></div>
-                        <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                        <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                        <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
+                      {/* Title */}
+                      <div className="h-8 w-2/3 bg-gray-200 rounded mb-3"></div>
+                      {/* Metadata */}
+                      <div className="flex items-center gap-2 mb-6">
+                        <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                        <div className="h-4 w-16 bg-gray-200 rounded"></div>
+                        <div className="h-4 w-24 bg-gray-200 rounded"></div>
+                      </div>
+                      {/* Paragraphs */}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="h-4 w-full bg-gray-200 rounded"></div>
+                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
+                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
+                        </div>
+                        <div className="h-6 w-40 bg-gray-200 rounded mt-6"></div>
+                        <div className="space-y-2">
+                          <div className="h-4 w-full bg-gray-200 rounded"></div>
+                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
+                          <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="h-4 w-full bg-gray-200 rounded"></div>
+                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
+                          <div className="h-4 w-8/12 bg-gray-200 rounded"></div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
                 {active.label === 'Blog Post' && blogError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{blogError}</div>
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center justify-between gap-3">
+                    <span>{blogError}</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          setBlogError('');
+                          setBlogLoading(true);
+                          const parts = window.location.pathname.split('/');
+                          const docId = parts[parts.indexOf('docs') + 1];
+                          const res = await fetch('/api/generate-blog', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ documentId: docId })
+                          });
+                          if (!res.ok) {
+                            const j = await res.json().catch(() => null);
+                            throw new Error(j?.error || `Status ${res.status}`);
+                          }
+                          const data = await res.json();
+                          setBlogContent(data.blogPost || '');
+                        } catch (e) {
+                          setBlogError(e instanceof Error ? e.message : 'Failed to generate');
+                        } finally {
+                          setBlogLoading(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md"
+                    >
+                      Retry
+                    </button>
+                  </div>
                 )}
 
                 {/* When refined exists: show split view; else show only original */}
