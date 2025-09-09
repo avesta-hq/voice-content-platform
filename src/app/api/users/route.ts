@@ -18,8 +18,9 @@ export async function POST(request: NextRequest) {
     
     // Get current database
     const db = await hybridStorageService.getDatabase();
+    const blogDb = await hybridStorageService.getBlogDatabase();
     
-    if (!db || !db.users) {
+    if (!db || !db.users || !blogDb) {
       return NextResponse.json({ error: 'Database not found' }, { status: 500 });
     }
     
@@ -47,8 +48,15 @@ export async function POST(request: NextRequest) {
     // Add to database
     db.users.push(newUser);
     
-    // Save database
-    await hybridStorageService.saveDatabase(db);
+    // Save both databases with user list
+    blogDb.users = blogDb.users || [];
+    if (!blogDb.users.find((u: User) => u.id === newUser.id)) {
+      blogDb.users.push(newUser);
+    }
+    await Promise.all([
+      hybridStorageService.saveDatabase(db),
+      hybridStorageService.saveBlogDatabase(blogDb)
+    ]);
     
     return NextResponse.json(newUser, { status: 201 });
     

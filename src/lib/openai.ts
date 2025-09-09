@@ -379,6 +379,7 @@ function getLanguageName(languageCode: string): string {
     'gu': 'Gujarati',
     'hi': 'Hindi',
     'en': 'English',
+    'te': 'Telugu',
     'es': 'Spanish',
     'fr': 'French',
     'de': 'German',
