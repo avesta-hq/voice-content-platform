@@ -19,6 +19,12 @@ export const SUPPORTED_LANGUAGES: Language[] = [
     speechRecognitionCode: 'te-IN'
   },
   {
+    code: 'ta',
+    name: 'Tamil',
+    nativeName: 'தமிழ்',
+    speechRecognitionCode: 'ta-IN'
+  },
+  {
     code: 'en',
     name: 'English',
     nativeName: 'English',

@@ -492,6 +492,32 @@ export class DocumentService {
     });
   }
 
+  // Save refined Twitter thread content (ONLY twitterThread array, don't touch twitter field)
+  static async updateGeneratedPlatformWithThread(
+    documentId: string,
+    twitterText: string,
+    twitterThreadArray: string[]
+  ): Promise<UserDocument> {
+    return this.retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE_URL}/userDocuments/${documentId}`, {
+        method: 'PATCH',
+        headers: DocumentService.getAuthHeaders(),
+        body: JSON.stringify({
+          generatedContent: { 
+            // Only update twitterThread field, keep twitter field separate
+            twitterThread: twitterThreadArray
+          },
+          hasGeneratedContent: true,
+          generatedAt: new Date().toISOString()
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to update Twitter thread content: ${response.status}`);
+      }
+      return response.json();
+    });
+  }
+
   // Document status management methods
   static async markDocumentCompleted(documentId: string): Promise<UserDocument> {
     return this.retryWithBackoff(async () => {

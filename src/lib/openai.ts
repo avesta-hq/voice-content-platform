@@ -248,7 +248,7 @@ async function generateBlogByChunks(
   return sections.join('\n\n');
 }
 
-async function generateTwitterThread(originalText: string, inputLanguage: string, outputLanguage: string, fallbackSource?: string): Promise<string[]> {
+export async function generateTwitterThread(originalText: string, inputLanguage: string, outputLanguage: string, fallbackSource?: string): Promise<string[]> {
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
   const threadPrompt = (process.env.OPENAI_TWITTER_WITH_THREAD_PROMPT || 'Create a numbered Twitter thread.')
@@ -327,20 +327,64 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
 
-  // Base prompts (reuse)
-  const base = await generateContent({ originalText, inputLanguage, outputLanguage, platform });
+  // Base prompts (reuse) — when currentPlatformOutput is available, seed the assistant with that exact content
+  const base = currentPlatformOutput && currentPlatformOutput.trim()
+    ? currentPlatformOutput
+    : await generateContent({ originalText, inputLanguage, outputLanguage, platform });
 
-  // Build refinement guidance; include current output when available to steer edits
-  const refinementInstruction = [
-    `User instruction: ${comment}`,
-    'Apply the instruction exactly while preserving the original meaning and facts.',
-    'Do not introduce new information. Respect the platform conventions.',
-    currentPlatformOutput ? `Here is the current platform output to refine:\n\n${currentPlatformOutput}` : undefined
-  ].filter(Boolean).join('\n\n');
+  // For simple replacements, try direct string replacement first
+  if (currentPlatformOutput && isSimpleReplacement(comment)) {
+    const directReplacement = attemptDirectReplacement(currentPlatformOutput, comment);
+    if (directReplacement) {
+      return directReplacement;
+    }
+  }
+
+  // Determine if this is a language change request
+  const isLanguageChange = isLanguageChangeRequest(comment.toLowerCase());
+  
+  // Debug logging
+  console.log('Refinement Debug:', {
+    comment,
+    isLanguageChange,
+    inputLanguage,
+    outputLanguage,
+    platform,
+    currentOutputLength: currentPlatformOutput?.length || 0
+  });
+  
+  // Build refinement instruction based on request type
+  const refinementInstruction = isLanguageChange ? [
+    `CURRENT CONTENT:\n${base}\n`,
+    `USER INSTRUCTION: ${comment}\n`,
+    'TRANSLATION RULES:',
+    '1. Translate the ENTIRE content to the requested language',
+    '2. Maintain the EXACT same meaning, structure, and formatting',
+    '3. Keep all emojis, numbers, and special characters unchanged',
+    '4. For Twitter threads, maintain the same number of tweets and similar length per tweet',
+    '5. Preserve the tone and style of the original content',
+    '6. Output the COMPLETE translated content',
+    `7. The content should be in ${outputLangName} but translate to the language mentioned in the user instruction if different`
+  ].join('\n') : [
+    `CURRENT CONTENT:\n${base}\n`,
+    `USER INSTRUCTION: ${comment}\n`,
+    'CRITICAL RULES:',
+    '1. Keep ALL existing content EXACTLY as written',
+    '2. Apply ALL changes mentioned in the user instruction (there may be multiple changes separated by commas, semicolons, or "and")',
+    '3. Only make the SPECIFIC changes requested - do NOT rephrase, rewrite, or modify any other words, sentences, or structure',
+    '4. Do NOT change formatting, emojis, numbers, or style unless specifically requested',
+    '5. Process each change instruction separately and apply them all to the content',
+    '6. Output the COMPLETE content with ALL requested changes applied',
+    '7. If you cannot make any specific change requested, skip that change but apply the others'
+  ].join('\n');
 
   try {
     const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
     const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
+    const systemPrompt = isLanguageChange 
+      ? 'You are an expert translator. Translate content accurately while preserving structure, formatting, and meaning. Maintain the same style and tone.'
+      : 'You are a precise text editor. Make ONLY the specific change requested. Keep everything else identical. Do not rewrite or rephrase anything.';
+    
     const basePayload: {
       model: string;
       messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
@@ -351,26 +395,138 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
       messages: [
         {
           role: 'system',
-          content: (process.env.OPENAI_SYSTEM_INSTRUCTION || 'You are a content transformation expert. Maintain exact meaning. Do not hallucinate.')
-            .replace('{inputLang}', inputLangName)
-            .replace('{outputLang}', outputLangName)
+          content: systemPrompt
         },
-        { role: 'user', content: `Original transcript in {${inputLangName}} (to be expressed in {${outputLangName}}):\n\n${originalText}` },
-        { role: 'assistant', content: base },
         { role: 'user', content: refinementInstruction }
-      ]
+      ],
+      temperature: isLanguageChange ? 0.3 : 0.1 // Higher temperature for translations, lower for edits
     };
     if (!isGpt5Model) {
       basePayload.max_tokens = 4000;
-      basePayload.temperature = 0.2;
     }
     const completion = await openai.chat.completions.create(basePayload);
 
-    return completion.choices[0]?.message?.content || 'Error refining content';
+    return completion.choices[0]?.message?.content?.trim() || base;
   } catch (error) {
     console.error('OpenAI API refine error:', error);
-    throw new Error('Failed to refine content');
+    return base;
   }
+}
+
+// Helper function to detect simple replacement requests
+function isSimpleReplacement(comment: string): boolean {
+  const lowerComment = comment.toLowerCase();
+  
+  // Skip simple replacement for language change requests
+  if (isLanguageChangeRequest(lowerComment)) {
+    return false;
+  }
+  
+  // Split by common separators to check each instruction
+  const instructions = comment.split(/[;,]|and\s+/).map(s => s.trim()).filter(Boolean);
+  
+  // Check if ALL instructions are simple replacements
+  return instructions.every(instruction => {
+    const lowerInstruction = instruction.toLowerCase();
+    return (
+      lowerInstruction.includes('replace') && lowerInstruction.includes('with') ||
+      lowerInstruction.includes('change') && lowerInstruction.includes('to') ||
+      /\d+.*to.*\d+/.test(lowerInstruction) // Pattern like "280 to 300" or "280M to 300M"
+    );
+  });
+}
+
+// Helper function to detect language change requests
+function isLanguageChangeRequest(lowerComment: string): boolean {
+  const languageNames = [
+    'tamil', 'telugu', 'hindi', 'gujarati', 'english', 'spanish', 'french', 
+    'german', 'italian', 'portuguese', 'russian', 'japanese', 'korean', 'chinese'
+  ];
+  
+  // Debug what we're checking
+  console.log('Language detection check:', { lowerComment, languageNames });
+  
+  const isLanguageRequest = (
+    lowerComment.includes('translate') ||
+    lowerComment.includes('convert') && lowerComment.includes('language') ||
+    lowerComment.includes('change') && lowerComment.includes('language') ||
+    lowerComment.includes('change language') ||
+    languageNames.some(lang => {
+      const patterns = [
+        `to ${lang}`, 
+        `in ${lang}`,
+        `change to ${lang}`,
+        `translate to ${lang}`,
+        `convert to ${lang}`,
+        `make it ${lang}`,
+        `${lang} language`
+      ];
+      return patterns.some(pattern => lowerComment.includes(pattern));
+    })
+  );
+  
+  console.log('Language detection result:', isLanguageRequest);
+  return isLanguageRequest;
+}
+
+// Helper function to attempt direct string replacement
+function attemptDirectReplacement(content: string, comment: string): string | null {
+  try {
+    let result = content;
+    let hasChanges = false;
+    
+    // Split comment by common separators to handle multiple instructions
+    const instructions = comment.split(/[;,]|and\s+/).map(s => s.trim()).filter(Boolean);
+    
+    for (const instruction of instructions) {
+      const lowerInstruction = instruction.toLowerCase();
+      
+      // Pattern: "replace X with Y"
+      const replaceMatch = lowerInstruction.match(/replace\s+(.+?)\s+with\s+(.+?)(?:\s|$)/);
+      if (replaceMatch) {
+        const [, oldValue, newValue] = replaceMatch;
+        const regex = new RegExp(escapeRegex(oldValue.trim()), 'gi');
+        if (regex.test(result)) {
+          result = result.replace(regex, newValue.trim());
+          hasChanges = true;
+        }
+        continue;
+      }
+
+      // Pattern: "change X to Y"
+      const changeMatch = lowerInstruction.match(/change\s+(.+?)\s+to\s+(.+?)(?:\s|$)/);
+      if (changeMatch) {
+        const [, oldValue, newValue] = changeMatch;
+        const regex = new RegExp(escapeRegex(oldValue.trim()), 'gi');
+        if (regex.test(result)) {
+          result = result.replace(regex, newValue.trim());
+          hasChanges = true;
+        }
+        continue;
+      }
+
+      // Pattern: "280M to 300M" or similar number changes
+      const numberMatch = lowerInstruction.match(/(\d+[a-z]*)\s+to\s+(\d+[a-z]*)/);
+      if (numberMatch) {
+        const [, oldNum, newNum] = numberMatch;
+        const regex = new RegExp(escapeRegex(oldNum), 'gi');
+        if (regex.test(result)) {
+          result = result.replace(regex, newNum);
+          hasChanges = true;
+        }
+        continue;
+      }
+    }
+
+    return hasChanges ? result : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Helper to escape special regex characters
+function escapeRegex(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Helper function to get language names
@@ -380,6 +536,7 @@ function getLanguageName(languageCode: string): string {
     'hi': 'Hindi',
     'en': 'English',
     'te': 'Telugu',
+    'ta': 'Tamil',
     'es': 'Spanish',
     'fr': 'French',
     'de': 'German',

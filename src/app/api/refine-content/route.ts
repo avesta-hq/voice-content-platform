@@ -6,7 +6,7 @@ import { UserDocument, VoiceSession } from '@/types';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { documentId, platform, comment } = body as { documentId?: string; platform?: string; comment?: string };
+    const { documentId, platform, comment, thread, currentOutput } = body as { documentId?: string; platform?: string; comment?: string; thread?: boolean; currentOutput?: string };
 
     if (!documentId || !platform || !comment || !comment.trim()) {
       return NextResponse.json({ error: 'Missing required fields: documentId, platform, comment' }, { status: 400 });
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       .join(' ');
 
     const normalizedPlatform = String(platform).toLowerCase();
+    // Map "twitter with thread" requests into twitter platform but inject thread behavior later
     type PlatformKey = 'blog' | 'linkedin' | 'twitter' | 'podcast';
     const validPlatforms: PlatformKey[] = ['blog', 'linkedin', 'twitter', 'podcast'];
     if (!validPlatforms.includes(normalizedPlatform as PlatformKey)) {
@@ -45,14 +46,46 @@ export async function POST(request: NextRequest) {
       }
     })();
 
-    const refined = await generateRefinedContent({
+    // Prefer the currentOutput from client (reflects edits/refinements already shown)
+    const baseOutput = currentOutput && currentOutput.trim() ? currentOutput : currentPlatformOutput;
+
+    let refined = await generateRefinedContent({
       originalText: combinedTranscript,
       inputLanguage: doc.inputLanguage,
       outputLanguage: doc.outputLanguage,
       platform: normalizedPlatform as PlatformKey,
       comment: comment.trim(),
-      currentPlatformOutput,
+      currentPlatformOutput: baseOutput,
     });
+
+    // If it's a thread request, just split the refined content into thread format
+    // Don't regenerate with generateTwitterThread as it might override language changes
+    if (normalizedPlatform === 'twitter' && thread) {
+      const threadItems = refined.split(/\n+/).filter(tweet => tweet.trim());
+      // If the refined content doesn't have proper thread structure, split by sentences/paragraphs
+      if (threadItems.length === 1 && threadItems[0].length > 280) {
+        const sentences = threadItems[0].split(/[.!?]+/).filter(s => s.trim());
+        const chunks: string[] = [];
+        let currentChunk = '';
+        
+        for (const sentence of sentences) {
+          const trimmed = sentence.trim();
+          if (!trimmed) continue;
+          
+          if (currentChunk.length + trimmed.length + 2 <= 280) {
+            currentChunk += (currentChunk ? '. ' : '') + trimmed;
+          } else {
+            if (currentChunk) chunks.push(currentChunk + '.');
+            currentChunk = trimmed;
+          }
+        }
+        if (currentChunk) chunks.push(currentChunk + '.');
+        
+        refined = chunks.join('\n\n');
+      } else {
+        refined = threadItems.join('\n\n');
+      }
+    }
 
     return NextResponse.json({ refined });
   } catch (error) {

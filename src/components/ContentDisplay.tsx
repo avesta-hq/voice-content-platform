@@ -352,10 +352,15 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       const urlParts = window.location.pathname.split('/');
       const docId = urlParts[urlParts.indexOf('docs') + 1];
 
+      // Determine the current visible content for this tab
+      const currentVisible = tab.label.toLowerCase().includes('thread') && twitterThread && twitterThread.length > 0
+        ? twitterThread.join('\n\n')
+        : getDisplayForKey(key);
+
       const res = await fetch('/api/refine-content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documentId: docId, platform: platformSlug, comment: modalComment.trim() })
+        body: JSON.stringify({ documentId: docId, platform: platformSlug, comment: modalComment.trim(), thread: tab.label.toLowerCase().includes('thread'), currentOutput: currentVisible })
       });
 
       if (!res.ok) {
@@ -366,6 +371,8 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       const refinedText = data.refined as string;
 
       setRefinedByPlatform(prev => ({ ...prev, [key]: { text: refinedText, comment: modalComment.trim() } }));
+      // Reset the saved state so user can save the new refinement
+      setRefinedSaved(prev => ({ ...prev, [key]: false }));
       setIsModalOpen(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -381,6 +388,8 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       delete clone[key];
       return clone;
     });
+    // Also reset the saved state when resetting refinement
+    setRefinedSaved(prev => ({ ...prev, [key]: false }));
   };
 
   return (
@@ -799,7 +808,18 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                                 const urlParts = window.location.pathname.split('/');
                                 const docId = urlParts[urlParts.indexOf('docs') + 1];
                                 const platform = platformSlugForKey(key);
-                                await DocumentService.updateGeneratedPlatform(docId, platform, refined);
+                                
+                                // Handle Twitter thread specially
+                                const tab = tabs.find(t => t.key === key);
+                                const isTwitterThread = tab?.label.toLowerCase().includes('thread');
+                                
+                                if (isTwitterThread && platform === 'twitter') {
+                                  // For Twitter threads, save both twitter field and twitterThread array
+                                  const threadArray = refined.split('\n\n').filter(tweet => tweet.trim());
+                                  await DocumentService.updateGeneratedPlatformWithThread(docId, refined, threadArray);
+                                } else {
+                                  await DocumentService.updateGeneratedPlatform(docId, platform, refined);
+                                }
                                 setRefinedSaved(prev => ({ ...prev, [key]: true }));
                               } catch (e) {
                                 console.error(e);
@@ -899,7 +919,18 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                     const platform = platformSlugForKey(key);
                     const urlParts = window.location.pathname.split('/');
                     const docId = urlParts[urlParts.indexOf('docs') + 1];
-                    await DocumentService.updateGeneratedPlatform(docId, platform, editText.trim());
+                    
+                    // Handle Twitter thread editing specially
+                    const tab = tabs.find(t => t.key === key);
+                    const isTwitterThread = tab?.label.toLowerCase().includes('thread');
+                    
+                    if (isTwitterThread && platform === 'twitter') {
+                      // For Twitter threads, save only to twitterThread field
+                      const threadArray = editText.trim().split('\n\n').filter(tweet => tweet.trim());
+                      await DocumentService.updateGeneratedPlatformWithThread(docId, editText.trim(), threadArray);
+                    } else {
+                      await DocumentService.updateGeneratedPlatform(docId, platform, editText.trim());
+                    }
                     setEditedByPlatform(prev => ({ ...prev, [key]: editText.trim() }));
                     setIsEditOpen(false);
                   } catch (e) {
