@@ -464,11 +464,30 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
     ? currentPlatformOutput
     : await generateContent({ originalText, inputLanguage, outputLanguage, platform });
 
-  // For simple replacements, try direct string replacement first
-  if (currentPlatformOutput && isSimpleReplacement(comment)) {
-    const directReplacement = attemptDirectReplacement(currentPlatformOutput, comment);
-    if (directReplacement) {
-      return directReplacement;
+  // Handle multiple comma/semicolon/"and" separated commands by applying them sequentially when possible
+  if (currentPlatformOutput) {
+    const instructions = comment.split(/[;,]|\band\b/gi).map(s => s.trim()).filter(Boolean);
+    if (instructions.length > 1) {
+      let working = currentPlatformOutput;
+      let changed = false;
+      for (const instr of instructions) {
+        if (isSimpleReplacement(instr)) {
+          const direct = attemptDirectReplacement(working, instr);
+          if (direct) {
+            working = direct;
+            changed = true;
+            continue;
+          }
+        }
+      }
+      if (changed) {
+        return working;
+      }
+    } else if (isSimpleReplacement(comment)) {
+      const directReplacement = attemptDirectReplacement(currentPlatformOutput, comment);
+      if (directReplacement) {
+        return directReplacement;
+      }
     }
   }
 
@@ -514,8 +533,10 @@ export async function generateRefinedContent(request: RefineContentRequest): Pro
     const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
     const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
     const systemPrompt = isLanguageChange 
-      ? 'You are an expert translator. Translate content accurately while preserving structure, formatting, and meaning. Maintain the same style and tone.'
-      : 'You are a precise text editor. Make ONLY the specific change requested. Keep everything else identical. Do not rewrite or rephrase anything.';
+      ? (process.env.OPENAI_REFINE_TRANSLATE_SYSTEM_INSTRUCTION 
+        || 'You are an expert translator. Translate content accurately while preserving structure, formatting, and meaning. Maintain the same style and tone.')
+      : (process.env.OPENAI_REFINE_SYSTEM_INSTRUCTION 
+        || 'You are a precise text editor. Make ONLY the specific change requested. Keep everything else identical. Do not rewrite or rephrase anything.');
     
     const basePayload: {
       model: string;

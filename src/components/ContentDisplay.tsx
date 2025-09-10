@@ -370,7 +370,13 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       const data = await res.json();
       const refinedText = data.refined as string;
 
-      setRefinedByPlatform(prev => ({ ...prev, [key]: { text: refinedText, comment: modalComment.trim() } }));
+      // Replace any prior unsaved refinement for this platform
+      setRefinedByPlatform(prev => ({
+        ...prev,
+        [key]: { text: refinedText, comment: modalComment.trim() }
+      }));
+      // Clear comment box to avoid stacking multiple commands
+      setModalComment('');
       // Reset the saved state so user can save the new refinement
       setRefinedSaved(prev => ({ ...prev, [key]: false }));
       setIsModalOpen(false);
