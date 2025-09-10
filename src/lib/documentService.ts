@@ -219,14 +219,11 @@ export class DocumentService {
   static async addSession(documentId: string, sessionData: Omit<VoiceSession, 'id' | 'documentId' | 'timestamp'>): Promise<VoiceSession> {
     return this.retryWithBackoff(async () => {
       try {
-        // Create the new session
+        // Create the new session (include any optional outline fields)
         const newSession: Omit<VoiceSession, 'id' | 'timestamp'> = {
           documentId,
-          sessionNumber: sessionData.sessionNumber,
-          transcript: sessionData.transcript,
-          duration: sessionData.duration,
-          notes: sessionData.notes,
-        };
+          ...sessionData,
+        } as Omit<VoiceSession, 'id' | 'timestamp'>;
 
         const response = await fetch(`${API_BASE_URL}/voiceSessions`, {
           method: 'POST',

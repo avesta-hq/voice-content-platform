@@ -5,34 +5,74 @@ import { VoiceSession, UserDocument } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { documentId } = body as { documentId?: string };
+    const url = new URL(request.url);
+    let documentId = url.searchParams.get('documentId') || undefined;
+    // Also accept JSON body
+    try {
+      const body = await request.json();
+      documentId = documentId || (body?.documentId as string | undefined);
+    } catch {}
     if (!documentId) return NextResponse.json({ error: 'Missing documentId' }, { status: 400 });
 
-    const db = await hybridStorageService.getDatabase();
-    if (!db) return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
-    db.userDocuments = db.userDocuments || [];
-    db.voiceSessions = db.voiceSessions || [];
+    const [draftDb, blogDb] = await Promise.all([
+      hybridStorageService.getDatabase(),
+      hybridStorageService.getBlogDatabase().catch(() => null)
+    ]);
+    if (!draftDb && !blogDb) return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
+    draftDb && (draftDb.userDocuments = draftDb.userDocuments || []);
+    blogDb && (blogDb.userDocuments = blogDb.userDocuments || []);
 
-    const doc = (db.userDocuments as UserDocument[]).find(d => d.id === documentId);
+    const doc = ((draftDb?.userDocuments || []) as UserDocument[]).find(d => d.id === documentId)
+      || ((blogDb?.userDocuments || []) as UserDocument[]).find(d => d.id === documentId);
     if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
 
-    const sessions = (db.voiceSessions as VoiceSession[]).filter(s => s.documentId === documentId);
-    const combined = sessions.sort((a,b) => a.sessionNumber - b.sessionNumber).map(s => s.transcript).join(' ');
+    // Use unified session reader (merges draft + completed)
+    const sessions = await hybridStorageService.getVoiceSessions(documentId);
+    const combined = sessions
+      .sort((a, b) => a.sessionNumber - b.sessionNumber)
+      .map((s, idx) => {
+        const indexLabel = `${idx + 1}.`;
+        const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
+        const raw = (s.transcript || '').trim();
+        const chunks = raw.split(/\n{2,}/);
+        const description = chunks[0] || '';
+        const rest = chunks.slice(1).join('\n');
+        const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
+        const bulletText = bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : '';
+        return [ `${indexLabel} ${title}`, description, bulletText ].filter(Boolean).join('\n');
+      })
+      .join('\n\n');
 
     const blogPost = await generateContent({ originalText: combined, inputLanguage: doc.inputLanguage, outputLanguage: doc.outputLanguage, platform: 'blog' });
 
-    const idx = (db.userDocuments as UserDocument[]).findIndex(d => d.id === documentId);
-    (db.userDocuments as UserDocument[])[idx] = {
-      ...(db.userDocuments as UserDocument[])[idx],
-      generatedContent: {
-        ...((db.userDocuments as UserDocument[])[idx].generatedContent || {}),
-        blog: blogPost,
-      },
-      hasGeneratedContent: true,
-      generatedAt: new Date().toISOString(),
-    } as UserDocument;
-    await hybridStorageService.saveDatabase(db);
+    // Save back to the correct database (draft or completed)
+    if (draftDb && (draftDb.userDocuments as UserDocument[]).some(d => d.id === documentId)) {
+      const idx = (draftDb.userDocuments as UserDocument[]).findIndex(d => d.id === documentId);
+      (draftDb.userDocuments as UserDocument[])[idx] = {
+        ...(draftDb.userDocuments as UserDocument[])[idx],
+        generatedContent: {
+          ...((draftDb.userDocuments as UserDocument[])[idx].generatedContent || {}),
+          blog: blogPost,
+        },
+        hasGeneratedContent: true,
+        generatedAt: new Date().toISOString(),
+      } as UserDocument;
+      await hybridStorageService.saveDatabase(draftDb);
+    } else if (blogDb) {
+      const idx = (blogDb.userDocuments as UserDocument[]).findIndex(d => d.id === documentId);
+      if (idx !== -1) {
+        (blogDb.userDocuments as UserDocument[])[idx] = {
+          ...(blogDb.userDocuments as UserDocument[])[idx],
+          generatedContent: {
+            ...((blogDb.userDocuments as UserDocument[])[idx].generatedContent || {}),
+            blog: blogPost,
+          },
+          hasGeneratedContent: true,
+          generatedAt: new Date().toISOString(),
+        } as UserDocument;
+        await hybridStorageService.saveBlogDatabase(blogDb);
+      }
+    }
 
     return NextResponse.json({ blogPost });
   } catch (e) {

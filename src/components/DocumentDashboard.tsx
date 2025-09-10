@@ -85,22 +85,46 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   }, [activeTab, loadDocuments]);
 
   const handleDeleteDocument = async (documentId: string) => {
-    // Get document title for confirmation
     const document = documents.find(doc => doc.id === documentId);
     const documentTitle = document?.title || 'this document';
     
-    if (window.confirm(`Are you sure you want to delete "${documentTitle}"?\n\nThis action will permanently remove the document and all its sessions. This cannot be undone.`)) {
-      try {
-        setOverlayMessage('Deleting document…');
-        setIsStatusChanging(true);
-        await DocumentService.deleteDocument(documentId);
-        await refreshDocuments(); // Use refresh instead of loadDocuments
-      } catch (err) {
-        setError('Failed to delete document');
-        console.error('Delete document error:', err);
-      } finally {
-        setIsStatusChanging(false);
-      }
+    // Build a lightweight custom confirm modal
+    const modal = window.document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 bg-black/30 flex items-center justify-center';
+    modal.innerHTML = `
+      <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4">
+        <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h4 class="text-lg font-semibold">Delete document?</h4>
+          <button id="del-close" class="text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+        <div class="p-5 space-y-3">
+          <p class="text-gray-700 text-sm">You're about to permanently delete <span class="font-medium">${documentTitle}</span> and all its sessions. This cannot be undone.</p>
+          <div class="flex justify-end gap-3">
+            <button id="del-cancel" class="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800">Cancel</button>
+            <button id="del-confirm" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white">Delete</button>
+          </div>
+        </div>
+      </div>`;
+    window.document.body.appendChild(modal);
+    const close = () => modal.remove();
+    modal.querySelector('#del-close')?.addEventListener('click', close);
+    modal.querySelector('#del-cancel')?.addEventListener('click', close);
+    const confirmBtn = modal.querySelector('#del-confirm');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async () => {
+        try {
+          setOverlayMessage('Deleting document…');
+          setIsStatusChanging(true);
+          await DocumentService.deleteDocument(documentId);
+          await refreshDocuments();
+        } catch (err) {
+          setError('Failed to delete document');
+          console.error('Delete document error:', err);
+        } finally {
+          setIsStatusChanging(false);
+          close();
+        }
+      });
     }
   };
 

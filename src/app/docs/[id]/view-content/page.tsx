@@ -31,8 +31,22 @@ export default function ViewContentPage() {
         const doc = await DocumentService.getDocumentWithSessions(docId);
         const combined = doc.sessions
           .sort((a, b) => a.sessionNumber - b.sessionNumber)
-          .map((s) => s.transcript)
-          .join(" ");
+          .map((s, idx) => {
+            const indexLabel = `${idx + 1}.`;
+            const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
+            const raw = (s.transcript || '').trim();
+            const chunks = raw.split(/\n{2,}/);
+            const description = chunks[0] || '';
+            const rest = chunks.slice(1).join('\n');
+            const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
+            const bulletText = bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : '';
+            return [
+              `${indexLabel} ${title}`,
+              description,
+              bulletText
+            ].filter(Boolean).join('\n');
+          })
+          .join("\n\n");
         setOriginalText(combined);
 
         if (doc.generatedContent) {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DocumentWithSessions } from '@/types';
+import { DocumentWithSessions, GeneratedOutline, VoiceSession } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { getLanguageByCode } from '@/lib/languages';
 
@@ -22,6 +22,32 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const hasLoadedRef = useRef<string | null>(null);
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
   const [isStatusChanging, setIsStatusChanging] = useState<boolean>(false);
+  // Outline generation state
+  const [isOutlineModalOpen, setIsOutlineModalOpen] = useState(false);
+  const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
+  const [outline, setOutline] = useState<GeneratedOutline | null>(null);
+  const [replaceOldOutlineSessions] = useState<boolean>(false);
+
+  const generateOutlineNow = async () => {
+    try {
+      setOutline(null);
+      setIsOutlineModalOpen(true);
+      setIsGeneratingOutline(true);
+      const res = await fetch('/api/generate-outline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Omit maxItems to allow OPENAI_OUTLINE_MAX_ITEMS env to control default
+        body: JSON.stringify({ documentId, platform: 'blog' })
+      });
+      if (!res.ok) throw new Error(`Failed: ${res.status}`);
+      const data = await res.json();
+      setOutline(data.outline as GeneratedOutline);
+    } catch (e) {
+      alert('Failed to generate outline');
+    } finally {
+      setIsGeneratingOutline(false);
+    }
+  };
 
   useEffect(() => {
     const loadDocument = async () => {
@@ -145,10 +171,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
 
   const getCombinedTranscript = (): string => {
     if (!document) return '';
-    return document.sessions
-      .sort((a, b) => a.sessionNumber - b.sessionNumber) // Changed to ascending order for logical document flow
-      .map(session => session.transcript)
-      .join(' ');
+    const parts = document.sessions
+      .sort((a, b) => a.sessionNumber - b.sessionNumber)
+      .map((session) => {
+        const hasTitle = !!(session.title && session.title.trim().length > 0);
+        const body = session.transcript?.trim() || '';
+        // Always keep title with its description to form best input for final generation
+        return hasTitle ? `${session.title!.trim()}\n\n${body}` : body;
+      })
+      .filter(Boolean);
+    return parts.join('\n\n');
   };
 
   if (isLoading) {
@@ -261,6 +293,15 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
               >
                 + Add Session
               </button>
+              {document.sessions.length > 0 && (
+                <button
+                  onClick={generateOutlineNow}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  title="Generate a structured outline from your sessions"
+                >
+                  Generate Outline
+                </button>
+              )}
               {/* Actions: always allow Generate if sessions exist; View when content exists */}
               {document.sessions.length > 0 && (
                 <button
@@ -364,10 +405,36 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
             </p>
           </div>
           <div className="p-6">
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
-              <p className="text-gray-800 whitespace-pre-wrap">
-                {getCombinedTranscript()}
-              </p>
+            <div className="mb-2 text-sm text-gray-600">Final-style preview (for reference only)</div>
+            <div className="max-h-64 overflow-y-auto p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <ol className="list-decimal pl-6 space-y-3">
+                {document.sessions
+                  .sort((a, b) => a.sessionNumber - b.sessionNumber)
+                  .map((session) => {
+                    const title = (session.title && session.title.trim()) || `Section ${session.sessionNumber}`;
+                    const body = (session.transcript || '').trim();
+                    // Heuristic: split first paragraph as description; remaining lines as bullets
+                    const split = body.split(/\n{2,}/);
+                    const description = split[0] || '';
+                    const rest = split.slice(1).join('\n');
+                    const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
+                    return (
+                      <li key={session.id}>
+                        <div className="font-semibold text-gray-900">{title}</div>
+                        {description && (
+                          <div className="mt-1 text-gray-800">{description}</div>
+                        )}
+                        {bullets.length > 0 && (
+                          <ul className="list-disc pl-5 mt-1 text-gray-800">
+                            {bullets.map((b, i) => (
+                              <li key={i}>{b}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
+              </ol>
             </div>
             <div className="mt-4 text-sm text-gray-500 text-center">
               Total: {document.wordCount} words • {formatDuration(document.totalDuration)} duration
@@ -413,8 +480,14 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                         {session.sessionNumber}
                       </div>
                       <div>
-                        <h3 className="font-medium text-gray-900">
-                          Session {session.sessionNumber}
+                        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                          {session.title && session.title.trim().length > 0
+                            ? session.title
+                            : `Session ${session.sessionNumber}`}
+                          {/* Edited badge for outline sessions when title differs from original outline title stored in notes */}
+                          {session.origin === 'outline' && session.title && session.notes && session.notes.startsWith('Outline:') && session.title.trim() !== session.notes.replace(/^Outline:\s*/, '').trim() && (
+                            <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 border border-yellow-200">Edited</span>
+                          )}
                         </h3>
                         <p className="text-sm text-gray-500">
                           {formatDate(session.timestamp)} • {formatDuration(session.duration)}
@@ -428,16 +501,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                           <button
                             onClick={() => setEditSessionId(session.id)}
                             className="text-blue-600 hover:text-blue-700 transition-colors p-1 icon-button"
-                            title="Edit session"
-                            aria-label="Edit session"
+                            title={`Edit ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
+                            aria-label={`Edit ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
                           >
                             <Pencil className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleSessionDelete(session.id)}
                             className="text-red-500 hover:text-red-600 transition-colors p-1 icon-button"
-                            title="Delete session"
-                            aria-label="Delete session"
+                            title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
+                            aria-label={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>
@@ -455,16 +528,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                     </div>
                   </div>
 
-                  {/* Session Notes */}
-                  {session.notes && (
-                    <div className="mb-4">
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                          <span className="font-medium">Notes:</span> {session.notes}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  {/* Notes intentionally hidden in session history */}
                 </div>
               ))}
           </div>
@@ -488,6 +552,156 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
             showToast('success', 'Session updated');
           }}
         />
+      )}
+
+      {/* Outline Modal */}
+      {isOutlineModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h4 className="text-lg font-semibold">Generate Outline</h4>
+              <button onClick={() => setIsOutlineModalOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              {!outline && (
+                <div className="py-10 text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-200 border-t-purple-600 mx-auto mb-3"></div>
+                  <div className="text-sm text-gray-700">Generating outline…</div>
+                </div>
+              )}
+
+              {outline && (
+                <>
+                  <div className="mb-2 text-sm text-gray-600">Outline preview ({outline.items.length} items). Nothing will be created until you confirm.</div>
+                  <div className="max-h-72 overflow-auto border border-gray-200 rounded-md">
+                    <ul className="divide-y divide-gray-200">
+                      {outline.items.map((it) => (
+                        <li key={it.id} className="p-3">
+                          <div className="font-medium text-gray-900">{it.title}</div>
+                          <div className="text-gray-700 text-sm whitespace-pre-wrap">{it.description}</div>
+                          {it.bullets && it.bullets.length > 0 && (
+                            <ul className="list-disc pl-5 mt-1 text-sm text-gray-700">
+                              {it.bullets.map((b, i) => (<li key={i}>{b}</li>))}
+                            </ul>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="flex items-center justify-end mt-3 gap-3">
+                      <button
+                        onClick={() => setIsOutlineModalOpen(false)}
+                        className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!document || !outline) return;
+                          try {
+                            // Build batch payload
+                            const startNumber = 2;
+                            const sessionInputs = outline.items.map((item, i) => {
+                              const textParts: string[] = [];
+                              // Do not include title in transcript - header shows it already
+                              if (item.description) textParts.push(item.description);
+                              if (item.bullets && item.bullets.length) textParts.push(item.bullets.join('\n'));
+                              const transcript = textParts.join('\n\n');
+                              return {
+                                sessionNumber: startNumber + i,
+                                transcript,
+                                duration: 0,
+                                notes: `Outline: ${item.title}`,
+                                origin: 'outline',
+                                outlineRef: { outlineId: outline.outlineId, itemId: item.id },
+                                title: item.title,
+                                description: item.description,
+                                estimatedDurationSec: item.estimatedDurationSec
+                              };
+                            });
+
+                            // Overwrite check (beyond first)
+                            const nonFirst = document.sessions.filter(s => s.sessionNumber > 1);
+                            if (nonFirst.length > 0) {
+                              // Open confirmation modal
+                              const modal = window.document.createElement('div');
+                              modal.className = 'fixed inset-0 z-50 bg-black/30 flex items-center justify-center';
+                              modal.innerHTML = `
+                                <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4">
+                                  <div class="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+                                    <h4 class="text-lg font-semibold">Replace existing sessions?</h4>
+                                    <button id="ovr-close" class="text-gray-500 hover:text-gray-700">✕</button>
+                                  </div>
+                                  <div class="p-5 space-y-4">
+                                    <p class="text-gray-700 text-sm">This will delete sessions 2..N and recreate them from the outline. Your first session will be kept.</p>
+                                    <div class="flex justify-end gap-3">
+                                      <button id="ovr-cancel" class="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800">Cancel</button>
+                                      <button id="ovr-confirm" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white">Overwrite and save</button>
+                                    </div>
+                                  </div>
+                                </div>`;
+                              window.document.body.appendChild(modal);
+                              const close = () => modal.remove();
+                              modal.querySelector('#ovr-close')?.addEventListener('click', close);
+                              modal.querySelector('#ovr-cancel')?.addEventListener('click', close);
+                              const confirmBtn = modal.querySelector('#ovr-confirm');
+                              if (confirmBtn) {
+                                confirmBtn.addEventListener('click', async () => {
+                                  try {
+                                    setIsStatusChanging(true);
+                                    const res = await fetch('/api/voiceSessions/batch', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ documentId, replaceBeyondFirst: true, sessions: sessionInputs })
+                                    });
+                                    if (!res.ok) throw new Error(`Failed: ${res.status}`);
+                                    const fresh = await DocumentService.getDocumentWithSessions(documentId);
+                                    setDocument(fresh);
+                                    setIsOutlineModalOpen(false);
+                                    showToast('success', 'Sessions replaced from outline');
+                                  } catch (e) {
+                                    console.error(e);
+                                    showToast('error', 'Failed to replace sessions');
+                                  } finally {
+                                    setIsStatusChanging(false);
+                                    close();
+                                  }
+                                });
+                              }
+                              return;
+                            }
+
+                            // Show fullscreen overlay loader (reuse status one)
+                            setIsStatusChanging(true);
+                            const res = await fetch('/api/voiceSessions/batch', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ documentId, replaceBeyondFirst: false, sessions: sessionInputs })
+                            });
+                            if (!res.ok) throw new Error(`Failed: ${res.status}`);
+                            // Reload document fresh
+                            const fresh = await DocumentService.getDocumentWithSessions(documentId);
+                            setDocument(fresh);
+                            setIsOutlineModalOpen(false);
+                            showToast('success', 'Sessions created from outline');
+                          } catch (e) {
+                            console.error(e);
+                            showToast('error', 'Failed to create sessions from outline');
+                          } finally {
+                            setIsStatusChanging(false);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        Save as sessions
+                      </button>
+                    
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Full-screen overlay loader during status change */}

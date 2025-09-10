@@ -20,6 +20,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
   const [isRecording, setIsRecording] = useState(false);
   const [recordedDuration, setRecordedDuration] = useState(0);
   const [newTranscript, setNewTranscript] = useState('');
+  const [title, setTitle] = useState<string>('');
   const [error, setError] = useState<string>('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const cumulative = useRef<string>('');
@@ -35,9 +36,16 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
       stopRecording();
       setRecordedDuration(0);
       setNewTranscript('');
+      setTitle('');
       setError('');
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setTitle(session.title || '');
+    }
+  }, [open, session]);
 
   const startRecording = () => {
     if (!speechManager.current) return;
@@ -94,8 +102,26 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
     try {
       const appended = newTranscript.trim();
       if (!appended) {
-        onClose();
-        return;
+        // Allow title-only edits for outline sessions
+        if ((session.origin === 'outline') && title.trim() !== (session.title || '')) {
+          const res = await fetch(`/api/voiceSessions/${session.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...session,
+              title: title.trim(),
+              timestamp: new Date().toISOString(),
+            })
+          });
+          if (!res.ok) throw new Error(`Failed to save session: ${res.status}`);
+          const updated: VoiceSession = await res.json();
+          onSaved(updated);
+          onClose();
+          return;
+        } else {
+          onClose();
+          return;
+        }
       }
       const merged = session.transcript + (session.transcript.endsWith(' ') || session.transcript.length === 0 ? '' : ' ') + appended;
 
@@ -107,6 +133,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
           transcript: merged,
           duration: session.duration + recordedDuration,
           timestamp: new Date().toISOString(),
+          ...(session.origin === 'outline' ? { title: title.trim() } : {})
         })
       });
       if (!res.ok) throw new Error(`Failed to save session: ${res.status}`);
@@ -135,6 +162,19 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
         ) : (
           <div className="p-5 space-y-4">
             {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
+
+            {session.origin === 'outline' && (
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                  placeholder="Enter session title"
+                />
+              </div>
+            )}
 
             <div>
               <div className="text-sm text-gray-600 mb-1">Current content</div>
@@ -170,7 +210,13 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
 
             <div className="pt-2 flex justify-end gap-3">
               <button onClick={onClose} className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleSave} disabled={!newTranscript.trim()} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">Save</button>
+              <button
+                onClick={handleSave}
+                disabled={!((session.origin === 'outline' && title.trim() !== (session.title || '')) || newTranscript.trim().length > 0)}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                Save
+              </button>
             </div>
           </div>
         )}

@@ -139,6 +139,12 @@ export interface VoiceSession {
   duration: number;
   timestamp: string;
   notes?: string;
+  // Optional fields for outline-derived sessions (backward compatible)
+  origin?: 'user' | 'outline';
+  outlineRef?: { outlineId: string; itemId: string };
+  title?: string;
+  description?: string;
+  estimatedDurationSec?: number;
 }
 
 export interface DocumentWithSessions extends UserDocument {
@@ -149,4 +155,19 @@ export interface CreateDocumentData {
   title: string;
   inputLanguage: string;
   outputLanguage: string;
+}
+
+// Outline types used for Generate Outline feature
+export interface OutlineItem {
+  id: string;
+  title: string;
+  description: string;
+  bullets?: string[];
+  estimatedDurationSec?: number; // mainly for podcast
+}
+
+export interface GeneratedOutline {
+  outlineId: string;
+  items: OutlineItem[];
+  displayText?: string;
 }

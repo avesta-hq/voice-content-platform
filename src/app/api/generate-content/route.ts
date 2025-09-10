@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAllContent } from '@/lib/openai';
+import { hybridStorageService } from '@/lib/hybridStorageService';
+import type { UserDocument, VoiceSession } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
     // Accept both 'text' and 'originalText' for compatibility
-    const originalText = body.originalText || body.text;
+    let originalText: string | undefined = body.originalText || body.text;
     const { inputLanguage, outputLanguage } = body;
+    const documentId: string | undefined = body.documentId;
 
     console.log('Generate content request:', {
       hasText: !!originalText,
@@ -18,6 +21,35 @@ export async function POST(request: NextRequest) {
       hasModelName: !!process.env.OPENAI_MODEL_NAME,
       nodeEnv: process.env.NODE_ENV
     });
+
+    // If a documentId is provided, prefer building the combined transcript from sessions (title + description)
+    if (!originalText && documentId) {
+      const db = await hybridStorageService.getDatabase();
+      if (db) {
+        const doc = (db.userDocuments || []).find((d: UserDocument) => String(d.id) === String(documentId));
+        const sessions = (db.voiceSessions || []).filter((s: VoiceSession) => String(s.documentId) === String(documentId));
+        if (doc && sessions && sessions.length > 0) {
+          originalText = sessions
+            .sort((a, b) => a.sessionNumber - b.sessionNumber)
+            .map((s, idx) => {
+              const indexLabel = `${idx + 1}.`;
+              const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
+              const raw = (s.transcript || '').trim();
+              const chunks = raw.split(/\n{2,}/);
+              const description = chunks[0] || '';
+              const rest = chunks.slice(1).join('\n');
+              const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
+              const bulletText = bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : '';
+              return [
+                `${indexLabel} ${title}`,
+                description,
+                bulletText
+              ].filter(Boolean).join('\n');
+            })
+            .join('\n\n');
+        }
+      }
+    }
 
     if (!originalText || !inputLanguage || !outputLanguage) {
       return NextResponse.json(

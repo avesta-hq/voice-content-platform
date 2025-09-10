@@ -316,6 +316,138 @@ export async function generatePodcast(originalText: string, inputLanguage: strin
   return generateContent({ originalText, inputLanguage, outputLanguage, platform: 'podcast' });
 }
 
+// -------------------- Outline Generation --------------------
+import type { GeneratedOutline } from '@/types';
+
+export async function generateOutlineFromTranscript(params: {
+  originalText: string;
+  inputLanguage: string;
+  outputLanguage: string;
+  platform: 'blog' | 'linkedin' | 'twitter' | 'podcast' | 'twitter_thread';
+  maxItems?: number;
+}): Promise<GeneratedOutline> {
+  const { originalText, inputLanguage, outputLanguage, platform } = params;
+  const maxItemsEnv = Number(process.env.OPENAI_OUTLINE_MAX_ITEMS || '0');
+  const defaultMax = maxItemsEnv > 0 ? maxItemsEnv : 12;
+  const maxItems = typeof params.maxItems === 'number' && params.maxItems > 0 ? params.maxItems : defaultMax;
+
+  const inputLangName = getLanguageName(inputLanguage);
+  const outputLangName = getLanguageName(outputLanguage);
+
+  const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
+  const isGpt5Model = modelName.toLowerCase().includes('gpt-5');
+
+  const platformHint = (() => {
+    switch (platform) {
+      case 'blog':
+        return 'Produce up to {maxItems} sections for a blog: each item with a clear section title and a concise description/bullets.';
+      case 'linkedin':
+        return 'Produce up to {maxItems} key points for a LinkedIn post: include a hook, main points, and a CTA as items.';
+      case 'twitter':
+      case 'twitter_thread':
+        return 'Produce up to {maxItems} tweet plans for a Twitter thread: each item includes a short title and a 1-2 sentence plan.';
+      case 'podcast':
+        return 'Produce up to {maxItems} podcast segments: each item has a segment title, a brief description, and optional talking points.';
+    }
+  })().replace('{maxItems}', String(maxItems));
+
+  const outlineTemplate = process.env.OPENAI_OUTLINE_SYSTEM_INSTRUCTION || '';
+  const templateHasVoicePlaceholder = outlineTemplate.includes('<insert transcribed voice notes here>') || outlineTemplate.includes('{voice_input}');
+  const systemPrompt = (
+    templateHasVoicePlaceholder
+      ? [
+          'You are an outline planner. Always preserve ALL user ideas.',
+          'NEVER drop content. If there are too many items, COMBINE less important points into the closest relevant item.',
+          `Write the outline in ${outputLangName}.`
+        ].join(' ')
+      : (outlineTemplate || [
+          'You are an outline planner. Always preserve ALL user ideas.',
+          'NEVER drop content. If there are too many items, COMBINE less important points into the closest relevant item.',
+          `Write the outline in ${outputLangName}.`
+        ].join(' '))
+  );
+
+  const userPrompt = (() => {
+    if (templateHasVoicePlaceholder) {
+      const filled = outlineTemplate
+        .replace('<insert transcribed voice notes here>', originalText)
+        .replace('{voice_input}', originalText)
+        .replace('{inputLang}', inputLangName)
+        .replace('{outputLang}', outputLangName);
+      return [
+        filled,
+        platformHint,
+        'Return ONLY valid JSON using this schema: {"items":[{"id":"string","title":"string","description":"string","bullets":["string"],"estimatedDurationSec":number}]}',
+        'Do NOT fabricate to reach the max. Use fewer than the cap if the input is short. Only create as many items as are genuinely supported by the transcript.',
+        'Keep titles short and descriptive. Put all remaining content inside description/bullets so that no idea is lost.'
+      ].join('\n\n');
+    }
+    return [
+      `Input language: ${inputLangName}. Output language: ${outputLangName}.`,
+      platformHint,
+      'Return ONLY valid JSON using this schema: {"items":[{"id":"string","title":"string","description":"string","bullets":["string"],"estimatedDurationSec":number}]}',
+      'Do NOT fabricate to reach the max. Use fewer than the cap if the input is short. Only create as many items as are genuinely supported by the transcript.',
+      'Keep titles short and descriptive. Put all remaining content inside description/bullets so that no idea is lost.',
+      'Transcript follows:\n\n' + originalText
+    ].join('\n\n');
+  })();
+
+  const payload: {
+    model: string;
+    messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+    temperature?: number;
+    response_format?: { type: 'json_object' };
+    max_tokens?: number;
+  } = {
+    model: modelName,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.3
+  };
+  if (!isGpt5Model) {
+    payload.max_tokens = 4000;
+  }
+  // Set JSON mode if available on this SDK version
+  (payload as unknown as { response_format?: { type: 'json_object' } }).response_format = { type: 'json_object' };
+
+  const completion = await openai.chat.completions.create(payload as {
+    model: string;
+    messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+    temperature?: number;
+    response_format?: { type: 'json_object' };
+    max_tokens?: number;
+  });
+  const text = completion.choices[0]?.message?.content || '{}';
+  let parsed: { items?: unknown };
+  try {
+    parsed = JSON.parse(text) as { items?: unknown };
+  } catch {
+    const match = text.match(/\{[\s\S]*\}$/);
+    parsed = match ? (JSON.parse(match[0]) as { items?: unknown }) : { items: [] };
+  }
+
+  const items = Array.isArray(parsed.items) ? (parsed.items as unknown[]) : [];
+  const outlineId = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto?.randomUUID ?
+    (globalThis as { crypto?: { randomUUID?: () => string } }).crypto!.randomUUID!() :
+    `out_${Date.now()}`;
+  const normalized = items.map((unknownItem, idx: number) => {
+    const obj = (unknownItem ?? {}) as Record<string, unknown>;
+    const bulletsVal = obj.bullets as unknown;
+    const est = obj.estimatedDurationSec as unknown;
+    return ({
+    id: typeof obj.id === 'string' && obj.id ? (obj.id as string) : `item_${idx + 1}`,
+    title: typeof obj.title === 'string' ? obj.title : `Item ${idx + 1}`,
+    description: typeof obj.description === 'string' ? obj.description : '',
+    bullets: Array.isArray(bulletsVal) ? (bulletsVal as unknown[]).map((b) => String(b)) : undefined,
+    estimatedDurationSec: typeof est === 'number' ? est : undefined,
+  });
+  });
+
+  return { outlineId, items: normalized, displayText: undefined };
+}
+
 export interface RefineContentRequest extends ContentGenerationRequest {
   comment: string;
   currentPlatformOutput?: string;
