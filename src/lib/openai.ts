@@ -213,7 +213,7 @@ async function generateBlogByChunks(
 ): Promise<string> {
   const inputLangName = getLanguageName(inputLanguage);
   const outputLangName = getLanguageName(outputLanguage);
-  const modelName = process.env.OPENAI_MODEL_NAME || 'gpt-4';
+  const modelName = process.env.OPENAI_OUTLINE_MODEL_NAME || process.env.OPENAI_MODEL_NAME || 'gpt-4';
 
   const chunkSize = 8000; // characters; heuristic to stay well within context
   const chunks: string[] = [];

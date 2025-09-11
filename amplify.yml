@@ -18,6 +18,7 @@ frontend:
         - env | grep -e OPENAI_SYSTEM_INSTRUCTION >> .env.production
         - env | grep -e OPENAI_OUTLINE_SYSTEM_INSTRUCTION >> .env.production
         - env | grep -e OPENAI_OUTLINE_MAX_ITEMS >> .env.production
+        - env | grep -e OPENAI_OUTLINE_MODEL_NAME >> .env.production
         - env | grep -e OPENAI_REFINE_SYSTEM_INSTRUCTION >> .env.production
         - env | grep -e OPENAI_REFINE_TRANSLATE_SYSTEM_INSTRUCTION >> .env.production
         # AWS S3 Configuration (renamed to avoid reserved prefix)
