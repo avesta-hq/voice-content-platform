@@ -110,7 +110,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
     }
   };
 
-  const handleSessionComplete = async (transcript: string, duration: number) => {
+  const handleSessionComplete = async (transcript: string, duration: number, notes?: string) => {
     if (!document) return;
 
     try {
@@ -121,7 +121,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
         transcript,
         duration,
         sessionNumber: nextSessionNumber,
-        notes: ''
+        notes: notes || ''
       });
       
       // Mark as changed since last generation
@@ -471,7 +471,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
         ) : (
           <div className="divide-y divide-gray-200">
             {document.sessions
-              .sort((a, b) => b.sessionNumber - a.sessionNumber) // Changed to descending order
+              .sort((a, b) => a.sessionNumber - b.sessionNumber) // Ascending order
               .map((session) => (
                 <div key={session.id} className="p-6">
                   <div className="flex items-start justify-between mb-4">
@@ -523,12 +523,44 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                   <div className="mb-4">
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                       <p className="text-gray-800 whitespace-pre-wrap">
-                        {session.transcript}
+                        {session.transcript && session.transcript.trim().length > 0 ? (
+                          session.transcript
+                        ) : (
+                          <span className="text-gray-400 italic">No transcript yet — add your input here. Use the notes below as hints.</span>
+                        )}
                       </p>
                     </div>
                   </div>
 
-                  {/* Notes intentionally hidden in session history */}
+                  {/* Session Notes (for user reference only; not used in generation) */}
+                  {session.notes && session.notes.trim().length > 0 && (
+                    <div className="mt-2">
+                      {(() => {
+                        const raw = session.notes.trim();
+                        const hasSeparator = raw.includes('\n\n');
+                        const [descPart, bulletsPart] = hasSeparator ? raw.split('\n\n', 2) : [raw, ''];
+                        const description = (descPart || '').trim();
+                        const bullets = (bulletsPart || '')
+                          .split('\n')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        return (
+                          <div>
+                            {description && (
+                              <p className="text-xs text-gray-500 italic font-serif whitespace-pre-wrap">{description}</p>
+                            )}
+                            {bullets.length > 0 && (
+                              <ul className="list-disc pl-5 mt-1 text-xs text-gray-500 italic font-serif">
+                                {bullets.map((b, i) => (
+                                  <li key={i}>{b}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               ))}
           </div>
@@ -602,16 +634,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                             // Build batch payload
                             const startNumber = 2;
                             const sessionInputs = outline.items.map((item, i) => {
-                              const textParts: string[] = [];
-                              // Do not include title in transcript - header shows it already
-                              if (item.description) textParts.push(item.description);
-                              if (item.bullets && item.bullets.length) textParts.push(item.bullets.join('\n'));
-                              const transcript = textParts.join('\n\n');
+                              const desc = (item.description || '').trim();
+                              const bulletsText = item.bullets && item.bullets.length ? item.bullets.join('\n') : '';
+                              const combinedNotes = [desc, bulletsText].filter(Boolean).join(desc && bulletsText ? '\n\n' : '');
                               return {
                                 sessionNumber: startNumber + i,
-                                transcript,
+                                // Keep transcript empty; user will create it using notes as hints
+                                transcript: '',
                                 duration: 0,
-                                notes: `Outline: ${item.title}`,
+                                // Notes contain outline description + bullets (no title)
+                                notes: combinedNotes,
                                 origin: 'outline',
                                 outlineRef: { outlineId: outline.outlineId, itemId: item.id },
                                 title: item.title,

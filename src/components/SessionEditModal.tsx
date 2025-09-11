@@ -176,12 +176,44 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
               </div>
             )}
 
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Current content</div>
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded">
-                <p className="whitespace-pre-wrap text-gray-800 text-sm">{session.transcript}</p>
+            {session.transcript && session.transcript.trim().length > 0 && (
+              <div>
+                <div className="text-sm text-gray-600 mb-1">Current content</div>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                  <p className="whitespace-pre-wrap text-gray-800 text-sm">{session.transcript}</p>
+                </div>
               </div>
-            </div>
+            )}
+
+            {session.notes && session.notes.trim().length > 0 && (
+              <div>
+                <div className="text-xs text-gray-500 mt-3 mb-1">Notes</div>
+                {(() => {
+                  const raw = session.notes!.trim();
+                  const hasSeparator = raw.includes('\n\n');
+                  const [descPart, bulletsPart] = hasSeparator ? raw.split('\n\n', 2) : [raw, ''];
+                  const description = (descPart || '').trim();
+                  const bullets = (bulletsPart || '')
+                    .split('\n')
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  return (
+                    <div>
+                      {description && (
+                        <p className="text-xs text-gray-500 italic font-serif whitespace-pre-wrap">{description}</p>
+                      )}
+                      {bullets.length > 0 && (
+                        <ul className="list-disc pl-5 mt-1 text-xs text-gray-500 italic font-serif">
+                          {bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">

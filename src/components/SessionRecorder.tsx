@@ -7,7 +7,7 @@ import { getLanguageByCode } from '@/lib/languages';
 
 interface SessionRecorderProps {
   inputLanguage: string;
-  onSessionComplete: (transcript: string, duration: number) => void;
+  onSessionComplete: (transcript: string, duration: number, notes?: string) => void;
   onCancel: () => void;
 }
 
@@ -120,7 +120,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
 
   const handleSaveSession = () => {
     if (recordingState.transcript.trim()) {
-      onSessionComplete(recordingState.transcript, recordingState.duration);
+      onSessionComplete(recordingState.transcript, recordingState.duration, notes?.trim() || '');
     }
   };
 
