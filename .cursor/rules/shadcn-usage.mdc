@@ -1,0 +1,53 @@
+---
+alwaysApply: true
+description: Always use shadcn/ui components and theme; initialize shadcn if missing before coding or creating components.
+---
+
+## Shadcn usage policy
+
+- **Always use shadcn/ui**: When writing UI code or creating components, prefer shadcn components and patterns.
+- **Theme and colors**: Use Tailwind v4 tokens defined in [src/app/globals.css](mdc:src/app/globals.css). Do not hardcode colors outside these tokens.
+- **Project config**: Configuration lives in [components.json](mdc:components.json). Aliases include `@/components`, `@/lib`, and `@/components/ui`.
+
+### Initialization (only if missing)
+
+If `components.json` is absent, initialize shadcn first:
+
+```bash
+npx --yes shadcn@latest init -y -d -t next -b slate
+```
+
+This writes `components.json`, updates theme variables in `src/app/globals.css`, and creates `src/lib/utils.ts` with `cn`.
+
+### Adding UI primitives
+
+- If a required component is not in the codebase, add it explicitly:
+
+```bash
+npx --yes shadcn@latest add button
+```
+
+- Components should reside under `@/components/ui` and use the `cn` helper from `@/lib/utils`.
+
+### Usage examples
+
+```tsx
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export function Example() {
+  return (
+    <div className={cn("p-4 bg-background text-foreground")}> 
+      <Button variant="default">Action</Button>
+    </div>
+  );
+}
+```
+
+### Guidelines
+
+- **Do**: Use Tailwind utilities and theme tokens (`bg-background`, `text-foreground`, etc.).
+- **Do**: Use lucide icons via `lucide-react` if icons are needed.
+- **Don’t**: Hand-roll custom CSS for primitives already available in shadcn.
+- **Don’t**: Bypass the theme with arbitrary color hex values unless absolutely necessary.
+
