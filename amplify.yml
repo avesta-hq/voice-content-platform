@@ -21,6 +21,11 @@ frontend:
         - env | grep -e OPENAI_OUTLINE_MODEL_NAME >> .env.production
         - env | grep -e OPENAI_REFINE_SYSTEM_INSTRUCTION >> .env.production
         - env | grep -e OPENAI_REFINE_TRANSLATE_SYSTEM_INSTRUCTION >> .env.production
+        # Social Reply Studio prompts and models
+        - env | grep -e OPENAI_ENGAGE_COMMENT_MODEL_NAME >> .env.production
+        - env | grep -e OPENAI_ENGAGE_REPOST_MODEL_NAME >> .env.production
+        - env | grep -e OPENAI_ENGAGE_COMMENT_SYSTEM_PROMPT >> .env.production
+        - env | grep -e OPENAI_ENGAGE_REPOST_SYSTEM_PROMPT >> .env.production
         # AWS S3 Configuration (renamed to avoid reserved prefix)
         - env | grep -e S3_ACCESS_KEY_ID >> .env.production
         - env | grep -e S3_SECRET_ACCESS_KEY >> .env.production

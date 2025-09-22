@@ -316,6 +316,128 @@ export async function generatePodcast(originalText: string, inputLanguage: strin
   return generateContent({ originalText, inputLanguage, outputLanguage, platform: 'podcast' });
 }
 
+// -------------------- Social Reply Studio --------------------
+export interface EngageGenerateParams {
+  platform: 'linkedin' | 'twitter';
+  postText: string;
+  intentText: string; // user's voice transcript; do not modify
+  languageOut: string; // language code from our map
+  tone?: 'professional' | 'friendly' | 'concise' | string;
+  length?: 'short' | 'medium' | 'long' | string;
+}
+
+export interface EngageSuggestion {
+  text: string;
+  rationale?: string;
+  confidence?: number;
+  tags?: string[];
+}
+
+export interface EngageResult {
+  comments: EngageSuggestion[];
+  reposts: EngageSuggestion[];
+}
+
+function getLangNameSafe(code: string): string {
+  try { return getLanguageName(code); } catch { return code; }
+}
+
+async function generateEngageWithPrompt(
+  params: EngageGenerateParams,
+  modelName: string,
+  systemPromptEnv: string | undefined,
+  requestKind: 'comment' | 'repost'
+): Promise<EngageSuggestion[]> {
+  const { platform, postText, intentText, languageOut, tone, length } = params;
+  const outName = getLangNameSafe(languageOut);
+  const systemPrompt = (systemPromptEnv || (
+    requestKind === 'comment'
+      ? 'You are a professional social media strategist. Generate concise, respectful, high-signal replies to a social post. Preserve the user\'s intent exactly; do not rewrite it. Apply community best practices from respected practitioners for {platform}. Always reply in {outputLang}. Avoid fabrications or unverified claims.'
+      : 'You are a professional social media strategist. Generate insightful repost/reshare copy that adds value to the original post. Preserve the user\'s intent exactly; do not rewrite it. Apply community best practices from respected practitioners for {platform}. Always write in {outputLang}. Avoid fabrications or unverified claims.'
+  ))
+    .replace('{platform}', platform)
+    .replace('{outputLang}', outName);
+
+  // Return hashtags used as tags (e.g., ["#AI", "#Startups"]).
+  const jsonSchema = '{"suggestions":[{"text":"string","rationale":"string","confidence":0.0,"tags":["#string"]}]}'
+  const userPrompt = [
+    `Platform: ${platform}`,
+    `Output language: ${outName}`,
+    `Tone: ${tone || 'professional'}`,
+    `Target length: ${length || 'short'}`,
+    'Constraints:',
+    '- Do NOT modify or paraphrase the original post text; use it only as context.',
+    "- Do NOT modify or paraphrase the user's intent (voice transcript); reflect it faithfully.",
+    '- Follow world-class best practices for this platform; keep it civil and constructive.',
+    '- Hashtag policy: Respect useful hashtags present in the original post. Include them only if relevant to your output.',
+    platform === 'twitter'
+      ? '- Add at most 1–2 NEW highly relevant hashtags; avoid spam.'
+      : '- Add at most 0–3 NEW highly relevant hashtags; avoid spam.',
+    '- URLs: If present in the original, you may include the same URL if it aids clarity; do not invent URLs.',
+    '',
+    'Original post (verbatim):\n"""\n' + postText.trim() + '\n"""',
+    'User intent (verbatim):\n"""\n' + intentText.trim() + '\n"""',
+    '',
+    `Task: Generate ${requestKind === 'comment' ? 'concise comment replies (2-3 options)' : 'repost/reshare copy (2 options)'} in ${outName}. Ensure any hashtags you include are topical and minimal.`,
+    'Return ONLY valid JSON matching: ' + jsonSchema + '\n' +
+    'Where "tags" is the exact list of hashtags you used in the text (each beginning with #).'
+  ].join('\n');
+
+  const payload = {
+    model: modelName,
+    messages: [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: userPrompt },
+    ],
+    temperature: 0.3,
+    // Ask for strict JSON when model supports it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    response_format: ({ type: 'json_object' } as any)
+  };
+  const completion = await openai.chat.completions.create(payload);
+  const text = completion.choices[0]?.message?.content || '{}';
+  // Robust JSON extraction: handle fenced blocks and trailing text
+  const tryParsers = [
+    () => JSON.parse(text) as { suggestions?: EngageSuggestion[] },
+    () => JSON.parse(text.replace(/^```json\s*|```\s*$/g, '').trim()) as { suggestions?: EngageSuggestion[] },
+    () => {
+      const match = text.match(/\{[\s\S]*\}/);
+      return match ? (JSON.parse(match[0]) as { suggestions?: EngageSuggestion[] }) : { suggestions: [] };
+    }
+  ];
+  for (const p of tryParsers) {
+    try {
+      const parsed = p();
+      if (parsed && Array.isArray(parsed.suggestions)) return parsed.suggestions;
+    } catch {
+      // try next
+    }
+  }
+  // Fallback: treat as a single plain-text suggestion
+  const cleaned = text.replace(/^```json|```$/g, '').trim();
+  return cleaned ? [{ text: cleaned }] : [];
+}
+
+export async function generateEngageBoth(params: EngageGenerateParams): Promise<EngageResult> {
+  const commentModel = process.env.OPENAI_ENGAGE_COMMENT_MODEL_NAME || process.env.OPENAI_MODEL_NAME || 'gpt-4';
+  const repostModel = process.env.OPENAI_ENGAGE_REPOST_MODEL_NAME || process.env.OPENAI_MODEL_NAME || 'gpt-4';
+  const [comments, reposts] = await Promise.all([
+    generateEngageWithPrompt(
+      params,
+      commentModel,
+      process.env.OPENAI_ENGAGE_COMMENT_SYSTEM_PROMPT,
+      'comment'
+    ),
+    generateEngageWithPrompt(
+      params,
+      repostModel,
+      process.env.OPENAI_ENGAGE_REPOST_SYSTEM_PROMPT,
+      'repost'
+    ),
+  ]);
+  return { comments, reposts };
+}
+
 // -------------------- Outline Generation --------------------
 import type { GeneratedOutline } from '@/types';
 
