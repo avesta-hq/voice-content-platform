@@ -5,6 +5,16 @@ import { UserDocument } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { UserService } from '@/lib/userService';
 import { getLanguageByCode } from '@/lib/languages';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Plus, Search, FileText, Mic, Clock, Languages, MoreVertical, Trash2, Edit, Eye, Calendar, Filter } from 'lucide-react';
 
 interface DocumentDashboardProps {
   onCreateNew: () => void;
@@ -167,286 +177,320 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">My Documents</h1>
-          <p className="text-gray-600 mt-2">Create, edit, and manage your voice content documents</p>
-        </div>
-        <button
-          onClick={onCreateNew}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2"
-        >
-          <span>+</span>
-          <span>Create New Document</span>
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('draft')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'draft'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Draft Documents
-            </button>
-            <button
-              onClick={() => setActiveTab('completed')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'completed'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Completed Documents
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Search - Only show when there are documents in the current tab */}
-      {documents.length > 0 && (
-        <div className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search documents by title..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        
+        {/* Modern Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Documents</h1>
+            <p className="text-muted-foreground">
+              Create, edit, and manage your voice content documents
+            </p>
           </div>
+          <Button onClick={onCreateNew} size="lg" className="sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Document
+          </Button>
         </div>
-      )}
 
-      {/* Error Display */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600">{error}</p>
-        </div>
-      )}
-
-      {/* Documents Grid */}
-      {isLoading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your documents...</p>
-        </div>
-      ) : filteredDocuments.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-gray-400 mb-4">
-            <svg className="mx-auto h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {activeTab === 'completed' ? 'No completed documents yet' : 'No documents yet'}
-          </h3>
-          <p className="text-gray-500 mb-6">
-            {activeTab === 'completed'
-              ? 'Documents you mark as completed will appear here.'
-              : 'Create your first document to get started with voice content creation'}
-          </p>
-          {activeTab === 'draft' && (
-            <button
-              onClick={onCreateNew}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Create Your First Document
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDocuments.map((document) => {
-            const inputLang = getLanguageByCode(document.inputLanguage);
-            const outputLang = getLanguageByCode(document.outputLanguage);
+        {/* Modern Tabs with Search */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'draft' | 'completed')} className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <TabsList className="grid w-full sm:w-auto grid-cols-2">
+              <TabsTrigger value="draft" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Draft Documents</span>
+                <span className="sm:hidden">Drafts</span>
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                <span className="hidden sm:inline">Completed Documents</span>
+                <span className="sm:hidden">Completed</span>
+              </TabsTrigger>
+            </TabsList>
             
-            return (
-              <div key={document.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 flex flex-col h-full">
-                <div className="p-6 flex-1 flex flex-col">
-                  {/* Document Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
-                        {document.title}
-                      </h3>
-                    </div>
-                    <div className="ml-3">
-                      <button
-                        onClick={() => handleDeleteDocument(document.id)}
-                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                        title="Delete document"
-                      >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Language Info */}
-                  <div className="mb-4">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <span>🌍</span>
-                      <span>{getLanguageByCode(document.inputLanguage || 'en')?.nativeName || getLanguageByCode(document.inputLanguage || 'en')?.name || 'Unknown'}</span>
-                      <span>→</span>
-                      <span>{getLanguageByCode(document.outputLanguage || 'en')?.nativeName || getLanguageByCode(document.outputLanguage || 'en')?.name || 'Unknown'}</span>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mb-4 text-sm">
-                    <div className="text-center">
-                      <div className="font-semibold text-gray-800">{document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0) ?? 0}</div>
-                      <div className="text-gray-500">Sessions</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-semibold text-gray-800">{formatDuration(document.totalDuration || 0)}</div>
-                      <div className="text-gray-500">Duration</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-semibold text-gray-800">{document.wordCount || 0}</div>
-                      <div className="text-gray-500">Words</div>
-                    </div>
-                  </div>
-
-                  {/* Date Info */}
-                  <div className="text-xs text-gray-500 mb-4">
-                    Created: {formatDate(document.createdAt || new Date().toISOString())}
-                  </div>
-
-                  {/* Action Buttons - Fixed at bottom */}
-                  <div className="mt-auto">
-                    {activeTab === 'draft' ? (
-                      /* Draft document actions */
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 min-h-[44px]">
-                          <button
-                            onClick={() => onEditDocument(document.id)}
-                            className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                          >
-                            Edit Document
-                          </button>
-
-                          {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) ? (
-                            <button
-                              onClick={() => onGenerateContent(document.id)}
-                              className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                              title="Generate content (overwrites saved content if present)"
-                            >
-                              Generate Content
-                            </button>
-                          ) : (
-                            /* placeholder to keep alignment when no generate button */
-                            <span className="hidden md:block"></span>
-                          )}
-
-                          {document.hasGeneratedContent && document.generatedContent ? (
-                            <button
-                              onClick={() => onViewContent && onViewContent(document.id)}
-                              className="w-full min-h-[36px] flex items-center justify-start px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                            >
-                              View Content
-                            </button>
-                          ) : (
-                            /* placeholder to keep alignment when no view button */
-                            <span className="hidden md:block"></span>
-                          )}
-                        </div>
-                        
-                        {/* Status switch for draft documents (only after first generation) */}
-                        {document.hasGeneratedContent && (
-                          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-                            <span className="text-[11px] sm:text-xs text-gray-600">Status</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] sm:text-xs text-gray-500">Draft</span>
-                              <button
-                                role="switch"
-                                aria-checked={false}
-                                aria-label="Toggle document status"
-                                aria-disabled={isStatusChanging}
-                                disabled={isStatusChanging}
-                                onClick={() => {
-                                  if (isStatusChanging) return;
-                                  handleStatusChange(document.id, 'completed');
-                                }}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isStatusChanging ? 'bg-gray-200 opacity-60 cursor-not-allowed' : 'bg-gray-300'}`}
-                              >
-                                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition translate-x-1`} />
-                              </button>
-                              <span className="text-[11px] sm:text-xs text-gray-900">Completed</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* Completed document actions */
-                      <div className="space-y-2">
-                        {/* Primary actions for completed docs */}
-                        <div className="grid grid-cols-2 gap-2 min-h-[44px]">
-                          <button
-                            onClick={() => onEditDocument(document.id)}
-                            className="w-full min-h-[36px] flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                          >
-                            View Document
-                          </button>
-                          <button
-                            onClick={() => onViewContent && onViewContent(document.id)}
-                            className="w-full min-h-[36px] flex items-center justify-center px-3 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors text-[11px] sm:text-xs font-medium leading-tight break-words whitespace-normal"
-                          >
-                            View Content
-                          </button>
-                        </div>
-
-                        {/* Status switch for completed documents (full width, consistent with Draft tab) */}
-                        <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-                          <span className="text-[11px] sm:text-xs text-gray-600">Status</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] sm:text-xs text-gray-500">Draft</span>
-                            <button
-                              role="switch"
-                              aria-checked={true}
-                              aria-label="Toggle document status"
-                              onClick={() => handleStatusChange(document.id, 'draft')}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full bg-emerald-600 transition-colors`}
-                            >
-                              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition translate-x-5`} />
-                            </button>
-                            <span className="text-[11px] sm:text-xs text-gray-900">Completed</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* Search Bar */}
+            {documents.length > 0 && (
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search documents..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Full-screen overlay loader during status change */}
-      {isStatusChanging && (
-        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white/90 rounded-xl shadow-xl px-6 py-5 flex flex-col items-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600 mb-3"></div>
-            <div className="text-sm text-gray-700">{overlayMessage}</div>
+            )}
           </div>
-        </div>
-      )}
+
+          {/* Error Display */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Tab Content */}
+          <TabsContent value="draft" className="space-y-6">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent"></div>
+                <p className="text-muted-foreground">Loading your documents...</p>
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <Card className="border-dashed border-2 border-muted-foreground/25">
+                <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                    <FileText className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold">No documents yet</h3>
+                    <p className="text-muted-foreground max-w-sm">
+                      Create your first document to get started with voice content creation
+                    </p>
+                  </div>
+                  <Button onClick={onCreateNew} size="lg">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Document
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {filteredDocuments.map((document) => {
+                  const inputLang = getLanguageByCode(document.inputLanguage);
+                  const outputLang = getLanguageByCode(document.outputLanguage);
+            
+                  return (
+                    <Card key={document.id} className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                              {document.title}
+                            </CardTitle>
+                            <CardDescription className="mt-1 flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(document.createdAt || new Date().toISOString())}
+                            </CardDescription>
+                          </div>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Delete Document</DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to delete "{document.title}"? This action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <Button variant="outline">Cancel</Button>
+                                <Button variant="destructive" onClick={() => handleDeleteDocument(document.id)}>
+                                  Delete Document
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3 pt-2">
+                        {/* Language Flow */}
+                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                          <div className="flex items-center gap-1 text-xs">
+                            <Languages className="h-3 w-3 text-primary" />
+                            <span className="font-medium">{inputLang?.nativeName || 'Unknown'}</span>
+                          </div>
+                          <div className="w-4 h-px bg-border"></div>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="font-medium">{outputLang?.nativeName || 'Unknown'}</span>
+                            <FileText className="h-3 w-3 text-primary" />
+                          </div>
+                        </div>
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center p-2 bg-accent/20 rounded-md">
+                            <div className="text-lg font-bold text-foreground">
+                              {document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0) ?? 0}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Sessions</div>
+                          </div>
+                          <div className="text-center p-2 bg-accent/20 rounded-md">
+                            <div className="text-lg font-bold text-foreground">{formatDuration(document.totalDuration || 0)}</div>
+                            <div className="text-xs text-muted-foreground">Duration</div>
+                          </div>
+                          <div className="text-center p-2 bg-accent/20 rounded-md">
+                            <div className="text-lg font-bold text-foreground">{document.wordCount || 0}</div>
+                            <div className="text-xs text-muted-foreground">Words</div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="space-y-3">
+                          <div className="flex gap-2">
+                            <Button onClick={() => onEditDocument(document.id)} variant="default" size="sm" className="flex-1">
+                              <Edit className="mr-1 h-3 w-3" />
+                              Edit
+                            </Button>
+                            {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) && (
+                              <Button onClick={() => onGenerateContent(document.id)} variant="secondary" size="sm" className="flex-1">
+                                <Mic className="mr-1 h-3 w-3" />
+                                Generate
+                              </Button>
+                            )}
+                            {document.hasGeneratedContent && document.generatedContent && (
+                              <Button onClick={() => onViewContent && onViewContent(document.id)} variant="outline" size="sm" className="flex-1">
+                                <Eye className="mr-1 h-3 w-3" />
+                                View
+                              </Button>
+                            )}
+                          </div>
+                        
+                          {/* Status Toggle */}
+                          {document.hasGeneratedContent && (
+                            <div className="flex items-center justify-between p-3 bg-muted/20 rounded-md">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">Document Status</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {activeTab === 'completed' ? 'Mark as draft' : 'Mark as completed'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Draft</span>
+                                <Switch 
+                                  checked={activeTab === 'completed'}
+                                  onCheckedChange={(checked) => {
+                                    handleStatusChange(document.id, checked ? 'completed' : 'draft');
+                                  }}
+                                  disabled={isStatusChanging}
+                                />
+                                <span className="text-xs text-muted-foreground">Done</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Completed Tab Content */}
+          <TabsContent value="completed" className="space-y-6">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent"></div>
+                <p className="text-muted-foreground">Loading your documents...</p>
+              </div>
+            ) : filteredDocuments.length === 0 ? (
+              <Card className="border-dashed border-2 border-muted-foreground/25">
+                <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                    <Eye className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold">No completed documents yet</h3>
+                    <p className="text-muted-foreground max-w-sm">
+                      Documents you mark as completed will appear here
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {filteredDocuments.map((document) => {
+                  const inputLang = getLanguageByCode(document.inputLanguage);
+                  const outputLang = getLanguageByCode(document.outputLanguage);
+
+                  return (
+                    <Card key={document.id} className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                              {document.title}
+                            </CardTitle>
+                            <CardDescription className="mt-1 flex items-center gap-2">
+                              <Calendar className="h-3 w-3" />
+                              {formatDate(document.createdAt || new Date().toISOString())}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch 
+                              checked={true}
+                              onCheckedChange={(checked) => {
+                                handleStatusChange(document.id, checked ? 'completed' : 'draft');
+                              }}
+                              disabled={isStatusChanging}
+                            />
+                            <Badge variant="default">Completed</Badge>
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3 pt-2">
+                        {/* Language Flow */}
+                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                          <div className="flex items-center gap-1 text-xs">
+                            <Languages className="h-3 w-3 text-primary" />
+                            <span className="font-medium">{inputLang?.nativeName || 'Unknown'}</span>
+                          </div>
+                          <div className="w-4 h-px bg-border"></div>
+                          <div className="flex items-center gap-1 text-xs">
+                            <span className="font-medium">{outputLang?.nativeName || 'Unknown'}</span>
+                            <FileText className="h-3 w-3 text-primary" />
+                          </div>
+                        </div>
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center p-2 bg-accent/20 rounded-md">
+                            <div className="text-lg font-bold text-foreground">
+                              {document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0) ?? 0}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Sessions</div>
+                          </div>
+                          <div className="text-center p-2 bg-accent/20 rounded-md">
+                            <div className="text-lg font-bold text-foreground">{formatDuration(document.totalDuration || 0)}</div>
+                            <div className="text-xs text-muted-foreground">Duration</div>
+                          </div>
+                          <div className="text-center p-2 bg-accent/20 rounded-md">
+                            <div className="text-lg font-bold text-foreground">{document.wordCount || 0}</div>
+                            <div className="text-xs text-muted-foreground">Words</div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <Button onClick={() => onEditDocument(document.id)} variant="outline" size="sm" className="flex-1">
+                            <Edit className="mr-1 h-3 w-3" />
+                            View
+                          </Button>
+                          {document.hasGeneratedContent && document.generatedContent && (
+                            <Button onClick={() => onViewContent && onViewContent(document.id)} variant="default" size="sm" className="flex-1">
+                              <Eye className="mr-1 h-3 w-3" />
+                              Content
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { UserService } from '@/lib/userService';
 import { LoginCredentials, User } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -122,93 +127,91 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
-        <p className="text-gray-600">Sign in to your Voice Content Platform account</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-            Email Address
-          </label>
-          <input
-            type="email"
-            id="email"
-            value={credentials.email}
-            onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter your email"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-            Password
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={credentials.password}
-            onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter your password"
-            required
-          />
-        </div>
-
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-600 text-sm">{error}</p>
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
-            isLoading
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-        >
-          {isLoading ? 'Signing In...' : 'Sign In'}
-        </button>
-      </form>
-
-      {/* Demo Users Section */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-        <h3 className="font-semibold text-blue-800 mb-3">
-          Demo Users ({demoUsers.length}) - Click to Login
-        </h3>
-        {isLoadingUsers ? (
-          <div className="text-center py-4">
-            <div className="text-blue-600">Loading users...</div>
-          </div>
-        ) : (
+    <Card className="max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+        <CardDescription>
+          Sign in to your Voice Content Platform account
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            {demoUsers.map((user) => (
-              <button
-                key={user.id}
-                onClick={() => handleDemoLogin(user.email)}
-                disabled={isLoading}
-                className="w-full text-left p-2 bg-white border border-blue-200 rounded hover:bg-blue-100 transition-colors"
-              >
-                <div className="font-medium text-blue-700">
-                  {user.firstName} {user.lastName}
-                </div>
-                <div className="text-sm text-blue-600">{user.email}</div>
-              </button>
-            ))}
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              type="email"
+              id="email"
+              value={credentials.email}
+              onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+              placeholder="Enter your email"
+              required
+            />
           </div>
-        )}
-      </div>
 
-      <div className="mt-6 text-center text-sm text-gray-500">
-        <p>Demo mode: Use any password with the demo emails above</p>
-      </div>
-    </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              type="password"
+              id="password"
+              value={credentials.password}
+              onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+              placeholder="Enter your password"
+              required
+            />
+          </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full"
+            size="lg"
+          >
+            {isLoading ? 'Signing In...' : 'Sign In'}
+          </Button>
+        </form>
+
+        {/* Demo Users Section */}
+        <div className="mt-6 space-y-3">
+          <h3 className="font-semibold text-foreground">
+            Demo Users ({demoUsers.length}) - Click to Login
+          </h3>
+          {isLoadingUsers ? (
+            <div className="text-center py-4">
+              <div className="text-muted-foreground">Loading users...</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {demoUsers.map((user) => (
+                <Button
+                  key={user.id}
+                  onClick={() => handleDemoLogin(user.email)}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full justify-start h-auto p-3"
+                >
+                  <div className="text-left">
+                    <div className="font-medium">
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )}
+          
+          <p className="text-center text-sm text-muted-foreground">
+            Demo mode: Use any password with the demo emails above
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

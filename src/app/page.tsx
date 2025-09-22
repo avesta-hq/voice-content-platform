@@ -25,11 +25,11 @@ export default function Home() {
   if (authed) return null;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
+    <main className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-100 py-8">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">Voice Content Platform</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold text-foreground mb-4">Voice Content Platform</h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Transform your voice into professional blog posts, social media content, and podcast scripts.
           </p>
         </div>

@@ -25,9 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className={`antialiased`}>
-        <header className="border-b bg-white">
+        <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="text-gray-900 font-semibold">Voice Content Platform</Link>
+            <Link href="/" className="text-foreground font-semibold hover:text-primary transition-colors text-sm sm:text-base">
+              <span className="hidden sm:inline">Voice Content Platform</span>
+              <span className="sm:hidden">VCP</span>
+            </Link>
             <TopNav />
           </div>
         </header>
