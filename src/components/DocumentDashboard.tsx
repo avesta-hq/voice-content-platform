@@ -14,7 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Search, FileText, Mic, Clock, Languages, MoreVertical, Trash2, Edit, Eye, Calendar, Filter } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/loading-overlay';
+import { LoadingState, DocumentGridSkeleton, LoadingDocuments } from '@/components/ui/loading-state';
+import { Plus, Search, FileText, Mic, Clock, Languages, MoreVertical, Trash2, Edit, Eye, Calendar, Filter, Loader2 } from 'lucide-react';
 
 interface DocumentDashboardProps {
   onCreateNew: () => void;
@@ -140,8 +142,9 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
 
   const handleStatusChange = async (documentId: string, newStatus: 'draft' | 'completed') => {
     try {
-      setOverlayMessage('Applying status change…');
+      setOverlayMessage(`Marking document as ${newStatus}…`);
       setIsStatusChanging(true);
+      
       if (newStatus === 'completed') {
         await DocumentService.markDocumentCompleted(documentId);
       } else {
@@ -187,7 +190,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
             <p className="text-muted-foreground">
               Create, edit, and manage your voice content documents
             </p>
-          </div>
+        </div>
           <Button onClick={onCreateNew} size="lg" className="sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Create New Document
@@ -195,38 +198,38 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
         </div>
 
         {/* Modern Tabs with Search */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'draft' | 'completed')} className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <TabsList className="grid w-full sm:w-auto grid-cols-2">
-              <TabsTrigger value="draft" className="flex items-center gap-2">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'draft' | 'completed')} className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col gap-4">
+            <TabsList className="grid w-full grid-cols-2 h-12">
+              <TabsTrigger value="draft" className="flex items-center justify-center gap-2 text-sm font-medium">
                 <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Draft Documents</span>
-                <span className="sm:hidden">Drafts</span>
+                <span className="hidden xs:inline sm:hidden md:inline">Draft Documents</span>
+                <span className="xs:hidden sm:inline md:hidden">Drafts</span>
               </TabsTrigger>
-              <TabsTrigger value="completed" className="flex items-center gap-2">
+              <TabsTrigger value="completed" className="flex items-center justify-center gap-2 text-sm font-medium">
                 <Eye className="h-4 w-4" />
-                <span className="hidden sm:inline">Completed Documents</span>
-                <span className="sm:hidden">Completed</span>
+                <span className="hidden xs:inline sm:hidden md:inline">Completed Documents</span>
+                <span className="xs:hidden sm:inline md:hidden">Completed</span>
               </TabsTrigger>
             </TabsList>
             
             {/* Search Bar */}
-            {documents.length > 0 && (
-              <div className="relative w-full sm:w-80">
+      {documents.length > 0 && (
+              <div className="relative w-full max-w-md mx-auto sm:mx-0 sm:max-w-sm sm:ml-auto">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="text"
+              type="text"
                   placeholder="Search documents..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-10"
+            />
+            </div>
             )}
           </div>
 
-          {/* Error Display */}
-          {error && (
+      {/* Error Display */}
+      {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -234,17 +237,14 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
 
           {/* Tab Content */}
           <TabsContent value="draft" className="space-y-6">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent"></div>
-                <p className="text-muted-foreground">Loading your documents...</p>
-              </div>
-            ) : filteredDocuments.length === 0 ? (
+      {isLoading ? (
+              <DocumentGridSkeleton count={6} />
+      ) : filteredDocuments.length === 0 ? (
               <Card className="border-dashed border-2 border-muted-foreground/25">
                 <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
                   <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
                     <FileText className="h-8 w-8 text-muted-foreground" />
-                  </div>
+          </div>
                   <div className="text-center space-y-2">
                     <h3 className="text-lg font-semibold">No documents yet</h3>
                     <p className="text-muted-foreground max-w-sm">
@@ -253,23 +253,23 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                   </div>
                   <Button onClick={onCreateNew} size="lg">
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Your First Document
+              Create Your First Document
                   </Button>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-                {filteredDocuments.map((document) => {
-                  const inputLang = getLanguageByCode(document.inputLanguage);
-                  const outputLang = getLanguageByCode(document.outputLanguage);
+          {filteredDocuments.map((document) => {
+            const inputLang = getLanguageByCode(document.inputLanguage);
+            const outputLang = getLanguageByCode(document.outputLanguage);
             
-                  return (
+            return (
                     <Card key={document.id} className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer">
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">
-                              {document.title}
+                        {document.title}
                             </CardTitle>
                             <CardDescription className="mt-1 flex items-center gap-2">
                               <Calendar className="h-3 w-3" />
@@ -278,7 +278,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                           </div>
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="sm" className="opacity-100">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </DialogTrigger>
@@ -301,17 +301,44 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                       </CardHeader>
 
                       <CardContent className="space-y-3 pt-2">
-                        {/* Language Flow */}
-                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-                          <div className="flex items-center gap-1 text-xs">
-                            <Languages className="h-3 w-3 text-primary" />
-                            <span className="font-medium">{inputLang?.nativeName || 'Unknown'}</span>
-                          </div>
-                          <div className="w-4 h-px bg-border"></div>
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className="font-medium">{outputLang?.nativeName || 'Unknown'}</span>
-                            <FileText className="h-3 w-3 text-primary" />
-                          </div>
+                        {/* Enhanced Language Flow */}
+                        <div className="relative overflow-hidden rounded-lg border border-border/50 bg-gradient-to-r from-primary/5 via-background to-secondary/5">
+                          <div className="flex items-center justify-between p-2 sm:p-3">
+                            {/* Input Language */}
+                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                              <div className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary/10 border border-primary/20 flex-shrink-0">
+                                <Mic className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+                    </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs text-muted-foreground font-medium">Speech</span>
+                                <span className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                                  {inputLang?.nativeName || 'Unknown'}
+                                </span>
+                    </div>
+                  </div>
+
+                            {/* Flow Arrow */}
+                            <div className="flex items-center gap-1 px-2 flex-shrink-0">
+                              <div className="w-4 sm:w-8 h-px bg-gradient-to-r from-primary/40 to-primary/60"></div>
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rotate-45 border-t border-r border-primary/60"></div>
+                            </div>
+
+                            {/* Output Language */}
+                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 justify-end">
+                              <div className="flex flex-col text-right min-w-0">
+                                <span className="text-xs text-muted-foreground font-medium">Content</span>
+                                <span className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                                  {outputLang?.nativeName || 'Unknown'}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-secondary/10 border border-secondary/20 flex-shrink-0">
+                                <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-secondary-foreground" />
+                              </div>
+                    </div>
+                  </div>
+
+                          {/* Subtle bottom accent */}
+                          <div className="h-px bg-gradient-to-r from-primary/20 via-primary/40 to-secondary/20"></div>
                         </div>
 
                         {/* Stats Grid */}
@@ -321,57 +348,65 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               {document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0) ?? 0}
                             </div>
                             <div className="text-xs text-muted-foreground">Sessions</div>
-                          </div>
+                    </div>
                           <div className="text-center p-2 bg-accent/20 rounded-md">
                             <div className="text-lg font-bold text-foreground">{formatDuration(document.totalDuration || 0)}</div>
                             <div className="text-xs text-muted-foreground">Duration</div>
-                          </div>
+                    </div>
                           <div className="text-center p-2 bg-accent/20 rounded-md">
                             <div className="text-lg font-bold text-foreground">{document.wordCount || 0}</div>
                             <div className="text-xs text-muted-foreground">Words</div>
-                          </div>
-                        </div>
+                    </div>
+                  </div>
 
                         {/* Action Buttons */}
                         <div className="space-y-3">
                           <div className="flex gap-2">
-                            <Button onClick={() => onEditDocument(document.id)} variant="default" size="sm" className="flex-1">
+                            <Button onClick={() => onEditDocument(document.id)} variant="default" size="sm" className="flex-1 h-8 text-xs">
                               <Edit className="mr-1 h-3 w-3" />
                               Edit
                             </Button>
                             {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) && (
-                              <Button onClick={() => onGenerateContent(document.id)} variant="secondary" size="sm" className="flex-1">
+                              <Button onClick={() => onGenerateContent(document.id)} variant="secondary" size="sm" className="flex-1 h-8 text-xs">
                                 <Mic className="mr-1 h-3 w-3" />
                                 Generate
                               </Button>
                             )}
                             {document.hasGeneratedContent && document.generatedContent && (
-                              <Button onClick={() => onViewContent && onViewContent(document.id)} variant="outline" size="sm" className="flex-1">
+                              <Button onClick={() => onViewContent && onViewContent(document.id)} variant="outline" size="sm" className="flex-1 h-8 text-xs">
                                 <Eye className="mr-1 h-3 w-3" />
                                 View
                               </Button>
-                            )}
-                          </div>
+                          )}
+                        </div>
                         
                           {/* Status Toggle */}
-                          {document.hasGeneratedContent && (
+                        {document.hasGeneratedContent && (
                             <div className="flex items-center justify-between p-3 bg-muted/20 rounded-md">
-                              <div className="flex flex-col">
+                              <div className="flex flex-col min-w-0 flex-1">
                                 <span className="text-sm font-medium">Document Status</span>
                                 <span className="text-xs text-muted-foreground">
-                                  {activeTab === 'completed' ? 'Mark as draft' : 'Mark as completed'}
+                                  {document.status === 'completed' ? 'Mark as draft' : 'Mark as completed'}
                                 </span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">Draft</span>
+                              <div 
+                                className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-4 cursor-pointer select-none"
+                                onClick={() => {
+                                  if (!isStatusChanging) {
+                                    handleStatusChange(document.id, document.status === 'completed' ? 'draft' : 'completed');
+                                  }
+                                }}
+                              >
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Draft</span>
                                 <Switch 
-                                  checked={activeTab === 'completed'}
+                                  checked={document.status === 'completed'}
                                   onCheckedChange={(checked) => {
                                     handleStatusChange(document.id, checked ? 'completed' : 'draft');
                                   }}
                                   disabled={isStatusChanging}
+                                  className="mx-1 pointer-events-none"
                                 />
-                                <span className="text-xs text-muted-foreground">Done</span>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">Done</span>
                               </div>
                             </div>
                           )}
@@ -387,10 +422,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
           {/* Completed Tab Content */}
           <TabsContent value="completed" className="space-y-6">
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-2 border-primary border-t-transparent"></div>
-                <p className="text-muted-foreground">Loading your documents...</p>
-              </div>
+              <DocumentGridSkeleton count={6} />
             ) : filteredDocuments.length === 0 ? (
               <Card className="border-dashed border-2 border-muted-foreground/25">
                 <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -424,31 +456,69 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               {formatDate(document.createdAt || new Date().toISOString())}
                             </CardDescription>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Switch 
-                              checked={true}
-                              onCheckedChange={(checked) => {
-                                handleStatusChange(document.id, checked ? 'completed' : 'draft');
-                              }}
-                              disabled={isStatusChanging}
-                            />
-                            <Badge variant="default">Completed</Badge>
-                          </div>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="opacity-100">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Delete Document</DialogTitle>
+                                <DialogDescription>
+                                  Are you sure you want to delete "{document.title}"? This action cannot be undone.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <Button variant="outline">Cancel</Button>
+                                <Button variant="destructive" onClick={() => handleDeleteDocument(document.id)}>
+                                  Delete Document
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       </CardHeader>
 
                       <CardContent className="space-y-3 pt-2">
-                        {/* Language Flow */}
-                        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-                          <div className="flex items-center gap-1 text-xs">
-                            <Languages className="h-3 w-3 text-primary" />
-                            <span className="font-medium">{inputLang?.nativeName || 'Unknown'}</span>
+                        {/* Enhanced Language Flow */}
+                        <div className="relative overflow-hidden rounded-lg border border-border/50 bg-gradient-to-r from-primary/5 via-background to-secondary/5">
+                          <div className="flex items-center justify-between p-2 sm:p-3">
+                            {/* Input Language */}
+                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                              <div className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-primary/10 border border-primary/20 flex-shrink-0">
+                                <Mic className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs text-muted-foreground font-medium">Speech</span>
+                                <span className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                                  {inputLang?.nativeName || 'Unknown'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Flow Arrow */}
+                            <div className="flex items-center gap-1 px-2 flex-shrink-0">
+                              <div className="w-4 sm:w-8 h-px bg-gradient-to-r from-primary/40 to-primary/60"></div>
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rotate-45 border-t border-r border-primary/60"></div>
+                            </div>
+
+                            {/* Output Language */}
+                            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 justify-end">
+                              <div className="flex flex-col text-right min-w-0">
+                                <span className="text-xs text-muted-foreground font-medium">Content</span>
+                                <span className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                                  {outputLang?.nativeName || 'Unknown'}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-secondary/10 border border-secondary/20 flex-shrink-0">
+                                <FileText className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-secondary-foreground" />
+                              </div>
+                            </div>
                           </div>
-                          <div className="w-4 h-px bg-border"></div>
-                          <div className="flex items-center gap-1 text-xs">
-                            <span className="font-medium">{outputLang?.nativeName || 'Unknown'}</span>
-                            <FileText className="h-3 w-3 text-primary" />
-                          </div>
+                          
+                          {/* Subtle bottom accent */}
+                          <div className="h-px bg-gradient-to-r from-primary/20 via-primary/40 to-secondary/20"></div>
                         </div>
 
                         {/* Stats Grid */}
@@ -471,26 +541,61 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
 
                         {/* Action Buttons */}
                         <div className="flex gap-2">
-                          <Button onClick={() => onEditDocument(document.id)} variant="outline" size="sm" className="flex-1">
+                          <Button onClick={() => onEditDocument(document.id)} variant="outline" size="sm" className="flex-1 h-8 text-xs">
                             <Edit className="mr-1 h-3 w-3" />
                             View
                           </Button>
                           {document.hasGeneratedContent && document.generatedContent && (
-                            <Button onClick={() => onViewContent && onViewContent(document.id)} variant="default" size="sm" className="flex-1">
+                            <Button onClick={() => onViewContent && onViewContent(document.id)} variant="default" size="sm" className="flex-1 h-8 text-xs">
                               <Eye className="mr-1 h-3 w-3" />
                               Content
                             </Button>
-                          )}
-                        </div>
+                    )}
+                  </div>
+
+                        {/* Status Toggle - Same position as draft documents */}
+                        <div className="flex items-center justify-between p-3 bg-muted/20 rounded-md">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-sm font-medium">Document Status</span>
+                            <span className="text-xs text-muted-foreground">
+                              Mark as draft to continue editing
+                            </span>
+                          </div>
+                          <div 
+                            className="flex items-center gap-2 sm:gap-3 flex-shrink-0 ml-4 cursor-pointer select-none"
+                            onClick={() => {
+                              if (!isStatusChanging) {
+                                handleStatusChange(document.id, document.status === 'completed' ? 'draft' : 'completed');
+                              }
+                            }}
+                          >
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Draft</span>
+                            <Switch 
+                              checked={document.status === 'completed'}
+                              onCheckedChange={(checked) => {
+                                handleStatusChange(document.id, checked ? 'completed' : 'draft');
+                              }}
+                              disabled={isStatusChanging}
+                              className="mx-1 pointer-events-none"
+                            />
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">Done</span>
+                </div>
+              </div>
                       </CardContent>
                     </Card>
-                  );
-                })}
-              </div>
-            )}
+            );
+          })}
+        </div>
+      )}
           </TabsContent>
         </Tabs>
-      </div>
+          </div>
+
+      {/* Loading Overlay */}
+      <LoadingOverlay 
+        isVisible={isStatusChanging} 
+        message={overlayMessage}
+      />
     </div>
   );
 }

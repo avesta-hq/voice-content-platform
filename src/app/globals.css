@@ -120,6 +120,11 @@ button, [role="button"], a,
     min-height: 44px;
   }
   
+  /* Exception: Switch components should maintain their natural size */
+  button[role="switch"] {
+    min-height: unset !important;
+  }
+  
   /* Orange recording indicator animation */
   .recording-pulse {
     background: hsl(var(--primary));
@@ -180,4 +185,14 @@ button, [role="button"], a,
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Scrollbar utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
 }

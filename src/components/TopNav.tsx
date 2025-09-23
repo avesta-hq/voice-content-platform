@@ -1,16 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, FileText, MessageSquare } from "lucide-react";
+import { Menu, X, FileText, MessageSquare, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UserService } from "@/lib/userService";
 
 export default function TopNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    UserService.logout();
+    router.replace("/");
+  };
   
   const NavItem = ({ href, label, icon: Icon, mobile = false, onClick }: { 
     href: string; 
@@ -55,6 +62,15 @@ export default function TopNav() {
         {navigationItems.map((item) => (
           <NavItem key={item.href} href={item.href} label={item.label} icon={item.icon} />
         ))}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="hidden lg:inline">Logout</span>
+        </Button>
       </nav>
 
       {/* Mobile Navigation */}
@@ -88,7 +104,19 @@ export default function TopNav() {
                 ))}
               </nav>
             </div>
-            <div className="px-6 py-4 border-t bg-muted/20">
+            <div className="px-6 py-4 border-t bg-muted/20 space-y-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
               <p className="text-xs text-muted-foreground text-center">
                 Voice Content Platform
               </p>

@@ -16,15 +16,11 @@ export default function DocsPage() {
   if (!UserService.isAuthenticated()) return null;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="container mx-auto px-4">
-        <DocumentDashboard
-          onCreateNew={() => router.push("/docs/add")}
-          onEditDocument={(id) => router.push(`/docs/${id}`)}
-          onGenerateContent={(id) => router.push(`/docs/${id}/generate-content`)}
-          onViewContent={(id) => router.push(`/docs/${id}/view-content`)}
-        />
-      </div>
-    </main>
+    <DocumentDashboard
+      onCreateNew={() => router.push("/docs/add")}
+      onEditDocument={(id) => router.push(`/docs/${id}`)}
+      onGenerateContent={(id) => router.push(`/docs/${id}/generate-content`)}
+      onViewContent={(id) => router.push(`/docs/${id}/view-content`)}
+    />
   );
 }

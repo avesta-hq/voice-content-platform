@@ -4,6 +4,30 @@ import React, { useState, useRef, useEffect } from 'react';
 import { SpeechRecognitionManager } from '@/lib/speechRecognition';
 import { RecordingState, LanguageSettings } from '@/types';
 import { getLanguageByCode, SUPPORTED_LANGUAGES } from '@/lib/languages';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Mic, 
+  MicOff, 
+  Square, 
+  Play, 
+  Pause, 
+  ArrowRight,
+  Clock, 
+  Languages, 
+  Volume2, 
+  FileText, 
+  AlertTriangle,
+  CheckCircle2,
+  Settings,
+  Zap
+} from 'lucide-react';
 
 interface VoiceRecorderProps {
   languageSettings: LanguageSettings;
@@ -131,191 +155,369 @@ export default function VoiceRecorder({ languageSettings, onLanguageSettingsChan
 
   if (!isSupported) {
     return (
-      <div className="text-center p-6 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-600">
-          Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.
-        </p>
+      <div className="max-w-4xl mx-auto p-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="text-base">
+            Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari for the best voice recording experience.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-        Voice Input & Language Selection
-      </h2>
-
-      {/* Language Selection */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h3 className="font-semibold text-blue-800 mb-3">🌍 Language Settings</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Input Language */}
-          <div>
-            <label htmlFor="inputLanguage" className="block text-sm font-medium text-blue-700 mb-2">
-              🎤 Input Language (Speech)
-            </label>
-            <select
-              id="inputLanguage"
-              value={languageSettings.inputLanguage}
-              onChange={(e) => onLanguageSettingsChange({
-                ...languageSettings,
-                inputLanguage: e.target.value
-              })}
-              className="w-full p-2 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {SUPPORTED_LANGUAGES.map((language) => (
-                <option key={language.code} value={language.code}>
-                  {language.nativeName} ({language.name})
-                </option>
-              ))}
-            </select>
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-3">
+          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Volume2 className="h-8 w-8 text-primary" />
           </div>
-
-          {/* Output Language */}
-          <div>
-            <label htmlFor="outputLanguage" className="block text-sm font-medium text-green-700 mb-2">
-              📝 Output Language (Content)
-            </label>
-            <select
-              id="outputLanguage"
-              value={languageSettings.outputLanguage}
-              onChange={(e) => onLanguageSettingsChange({
-                ...languageSettings,
-                outputLanguage: e.target.value
-              })}
-              className="w-full p-2 border border-green-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            >
-              {SUPPORTED_LANGUAGES.map((language) => (
-                <option key={language.code} value={language.code}>
-                  {language.nativeName} ({language.name})
-                </option>
-              ))}
-            </select>
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight">Voice Input & Language Selection</h1>
+          <p className="text-muted-foreground text-lg">
+            Configure your languages and record voice content with advanced controls
+          </p>
         </div>
 
-        {/* Language Display */}
-        <div className="mt-4 p-3 bg-white border border-blue-300 rounded-md">
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-4 text-sm">
-              <div className="text-center">
-                <span className="text-gray-600">Input:</span>
-                <div className="font-medium text-blue-700">
-                  {selectedInputLanguage?.nativeName} ({selectedInputLanguage?.name})
-                </div>
+        {/* Language Settings Card */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-primary">
+              <Settings className="h-5 w-5" />
+              Language Configuration
+            </CardTitle>
+            <CardDescription>
+              Set your input and output languages for voice recording and content generation
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Input Language */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <div className="w-6 h-6 bg-primary/10 rounded-md flex items-center justify-center">
+                    <Mic className="h-3 w-3 text-primary" />
+                  </div>
+                  Speech Input Language
+                </Label>
+                <Select
+                  value={languageSettings.inputLanguage}
+                  onValueChange={(value) => onLanguageSettingsChange({
+                    ...languageSettings,
+                    inputLanguage: value
+                  })}
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Choose your speaking language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.map((language) => (
+                      <SelectItem key={language.code} value={language.code}>
+                        <div className="flex items-center gap-2">
+                          <span>{language.nativeName}</span>
+                          <span className="text-muted-foreground">({language.name})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="text-gray-400">→</div>
-              <div className="text-center">
-                <span className="text-gray-600">Output:</span>
-                <div className="font-medium text-green-700">
-                  {selectedOutputLanguage?.nativeName} ({selectedOutputLanguage?.name})
+
+              {/* Output Language */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium flex items-center gap-2">
+                  <div className="w-6 h-6 bg-secondary/20 rounded-md flex items-center justify-center">
+                    <FileText className="h-3 w-3 text-secondary-foreground" />
+                  </div>
+                  Content Output Language
+                </Label>
+                <Select
+                  value={languageSettings.outputLanguage}
+                  onValueChange={(value) => onLanguageSettingsChange({
+                    ...languageSettings,
+                    outputLanguage: value
+                  })}
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Choose content generation language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_LANGUAGES.map((language) => (
+                      <SelectItem key={language.code} value={language.code}>
+                        <div className="flex items-center gap-2">
+                          <span>{language.nativeName}</span>
+                          <span className="text-muted-foreground">({language.name})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Language Flow Preview */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                Language Workflow
+              </Label>
+              <div className="flex items-center justify-center gap-4 p-4 bg-background/50 rounded-lg border border-border/50">
+                <div className="text-center">
+                  <Badge variant="secondary" className="mb-2">
+                    <Mic className="h-3 w-3 mr-1" />
+                    Speech Input
+                  </Badge>
+                  <div className="text-sm font-medium">
+                    {selectedInputLanguage?.nativeName || 'Select language'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedInputLanguage?.name || ''}
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-primary" />
+                <div className="text-center">
+                  <Badge variant="default" className="mb-2">
+                    <Zap className="h-3 w-3 mr-1" />
+                    AI Processing
+                  </Badge>
+                  <div className="text-xs text-muted-foreground">
+                    Real-time transcription
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-primary" />
+                <div className="text-center">
+                  <Badge variant="outline" className="mb-2">
+                    <FileText className="h-3 w-3 mr-1" />
+                    Content Output
+                  </Badge>
+                  <div className="text-sm font-medium">
+                    {selectedOutputLanguage?.nativeName || 'Select language'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedOutputLanguage?.name || ''}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Recording Controls */}
-      <div className="flex justify-center space-x-4 mb-6">
-        {!recordingState.isRecording ? (
-          <button
-            onClick={startRecording}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Start Recording
-          </button>
-        ) : (
-          <>
-            {recordingState.isPaused ? (
-              <button
-                onClick={resumeRecording}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Resume
-              </button>
-            ) : (
-              <button
-                onClick={pauseRecording}
-                className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-              >
-                Pause
-              </button>
-            )}
-            <button
-              onClick={stopRecording}
-              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Stop
-            </button>
-          </>
+          </CardContent>
+        </Card>
+        
+        {/* Advanced Recording Controls Card */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center space-y-6">
+              {/* Main Recording Button */}
+              <div className="flex justify-center">
+                {!recordingState.isRecording ? (
+                  <Button
+                    onClick={startRecording}
+                    size="lg"
+                    className="h-20 w-20 rounded-full bg-primary hover:bg-primary/90 shadow-lg"
+                  >
+                    <Mic className="h-10 w-10" />
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    {recordingState.isPaused ? (
+                      <Button
+                        onClick={resumeRecording}
+                        size="lg"
+                        className="h-16 w-16 rounded-full bg-green-600 hover:bg-green-700 shadow-lg"
+                      >
+                        <Play className="h-8 w-8" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={pauseRecording}
+                        size="lg"
+                        variant="secondary"
+                        className="h-16 w-16 rounded-full shadow-lg"
+                      >
+                        <Pause className="h-8 w-8" />
+                      </Button>
+                    )}
+                    <Button
+                      onClick={stopRecording}
+                      size="lg"
+                      variant="destructive"
+                      className="h-16 w-16 rounded-full shadow-lg"
+                    >
+                      <Square className="h-8 w-8" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Recording Status */}
+              {recordingState.isRecording && (
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      recordingState.isPaused 
+                        ? 'bg-yellow-500' 
+                        : 'bg-destructive animate-pulse'
+                    }`}></div>
+                    <Badge 
+                      variant={recordingState.isPaused ? "secondary" : "destructive"} 
+                      className="text-base px-4 py-2"
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      {recordingState.isPaused ? 'Paused' : 'Recording'} - {formatTime(recordingState.duration)}
+                    </Badge>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground">
+                    {recordingState.isPaused 
+                      ? 'Your input is safely preserved. Click Resume to continue.'
+                      : 'Speak clearly into your microphone. Use Pause to take breaks.'
+                    }
+                  </p>
+                  
+                  {/* Pause State Alert */}
+                  {recordingState.isPaused && (
+                    <Alert className="border-yellow-200 bg-yellow-50">
+                      <Pause className="h-4 w-4 text-yellow-600" />
+                      <AlertDescription className="text-yellow-800">
+                        <strong>Recording Paused:</strong> Your speech input is safely preserved. 
+                        Click the Resume button to continue recording from where you left off.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+              
+              {/* Instructions for idle state */}
+              {!recordingState.isRecording && (
+                <div className="text-center space-y-2">
+                  <p className="text-muted-foreground">
+                    Click the microphone to start recording
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Advanced controls: Pause anytime to preserve your input
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Enhanced Transcript Display */}
+        {recordingState.transcript && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Volume2 className="h-5 w-5 text-primary" />
+                Voice Input Transcript
+              </CardTitle>
+              <CardDescription>
+                Real-time transcription of your speech with advanced pause/resume support
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-muted/30 rounded-lg min-h-[150px] border border-border/50">
+                <p className="text-foreground whitespace-pre-wrap leading-relaxed text-base">
+                  {recordingState.transcript}
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                    <span>{recordingState.transcript.split(' ').length} words captured</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span>{formatTime(recordingState.duration)} recorded</span>
+                  </div>
+                </div>
+                {recordingState.isPaused && (
+                  <Badge variant="secondary" className="text-xs">
+                    <Pause className="h-3 w-3 mr-1" />
+                    Paused - Safe to resume
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
-      </div>
 
-      {/* Recording Status */}
-      {recordingState.isRecording && (
-        <div className="text-center mb-6">
-          <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
-            recordingState.isPaused 
-              ? 'bg-yellow-100 text-yellow-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            <div className={`w-3 h-3 rounded-full ${
-              recordingState.isPaused 
-                ? 'bg-yellow-500' 
-                : 'bg-red-500 animate-pulse'
-            }`}></div>
-            <span className="font-medium">
-              {recordingState.isPaused ? 'Paused - Your input is preserved' : 'Recording'} - {formatTime(recordingState.duration)}
-            </span>
-          </div>
-          
-          {/* Pause State Message */}
-          {recordingState.isPaused && (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-700 text-sm">
-                💡 <strong>Paused:</strong> Your speech input is safely preserved. Click &quot;Resume&quot; to continue recording from where you left off.
-              </p>
+        {/* Process Content Button */}
+        {recordingState.transcript && !recordingState.isRecording && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Ready to Process</h3>
+                  <p className="text-muted-foreground">
+                    Your voice input has been captured successfully. Process it to generate content.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleDone}
+                  size="lg"
+                  className="px-8"
+                >
+                  <Zap className="mr-2 h-4 w-4" />
+                  Process Content
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Enhanced Instructions */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-primary">Advanced Recording Guide</CardTitle>
+            <CardDescription>
+              Master the advanced voice recording features with pause/resume functionality
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Setup</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Configure your input language ({selectedInputLanguage?.name || 'not selected'})</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Set your output language ({selectedOutputLanguage?.name || 'not selected'})</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Ensure your microphone is enabled and working</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm uppercase tracking-wide text-muted-foreground">Recording</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Click the large microphone button to start recording</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Use Pause to take breaks - your input is safely preserved</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Click Resume to continue from where you left off</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                    <span>Stop recording and process your content when finished</span>
+                  </li>
+                </ul>
+              </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Transcript Display */}
-      {recordingState.transcript && (
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-3">Your Input:</h3>
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[120px]">
-            <p className="text-gray-800 whitespace-pre-wrap">
-              {recordingState.transcript}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Done Button */}
-      {recordingState.transcript && !recordingState.isRecording && (
-        <div className="text-center">
-          <button
-            onClick={handleDone}
-            className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            Done - Process Content
-          </button>
-        </div>
-      )}
-
-      {/* Instructions */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-800 mb-2">Instructions:</h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Select your input and output languages above</li>
-          <li>• Click &quot;Start Recording&quot; to begin voice input in {selectedInputLanguage?.name}</li>
-          <li>• Use &quot;Pause&quot; to take breaks while thinking - your input is preserved</li>
-          <li>• Click &quot;Done&quot; when you&apos;re finished with your input</li>
-          <li>• Your original speech will be preserved exactly as spoken</li>
-          <li>• Content will be generated in {selectedOutputLanguage?.name}</li>
-        </ul>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

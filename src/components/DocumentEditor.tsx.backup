@@ -7,36 +7,32 @@ import { getLanguageByCode } from '@/lib/languages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { LoadingState, DocumentEditorSkeleton } from '@/components/ui/loading-state';
-import { 
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoadingState } from '@/components/ui/loading-state';
+import SessionRecorder from './SessionRecorder';
+import SessionEditModal from './SessionEditModal';
 import { 
   ArrowLeft,
   Plus,
-  Mic,
   FileText,
-  Eye,
+  Mic,
   Zap,
+  Eye,
+  Edit,
+  Trash2,
   Clock,
   Languages,
   User,
   Calendar,
-  BarChart3,
-  Pencil,
-  Trash2,
+  RotateCcw,
   AlertTriangle,
   CheckCircle2,
   Loader2,
   Sparkles,
-  Home
+  Pencil
 } from 'lucide-react';
 
 interface DocumentEditorProps {
@@ -55,6 +51,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const hasLoadedRef = useRef<string | null>(null);
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
+  const [isStatusChanging, setIsStatusChanging] = useState<boolean>(false);
   // Outline generation state
   const [isOutlineModalOpen, setIsOutlineModalOpen] = useState(false);
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
@@ -218,9 +215,14 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-          <DocumentEditorSkeleton />
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6">
+        <div className="max-w-6xl mx-auto">
+          <LoadingState 
+            message="Loading document..." 
+            submessage="Fetching your document and voice sessions"
+            variant="card"
+            size="lg"
+          />
         </div>
       </div>
     );
@@ -228,30 +230,23 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
 
   if (!document) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           <Card className="border-destructive/20">
-            <CardHeader className="text-center pb-4">
+            <CardHeader className="text-center">
               <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle className="h-8 w-8 text-destructive" />
               </div>
               <CardTitle className="text-destructive">Failed to Load Document</CardTitle>
               <CardDescription>{error}</CardDescription>
             </CardHeader>
-            <CardContent className="text-center space-y-4">
+            <CardContent>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <Button
-                  onClick={() => window.location.reload()}
-                  className="flex items-center gap-2"
-                >
-                  <Loader2 className="h-4 w-4" />
+                <Button onClick={() => window.location.reload()} className="flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4" />
                   Retry Loading
                 </Button>
-                <Button
-                  onClick={onBackToDashboard}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
+                <Button onClick={onBackToDashboard} variant="outline" className="flex items-center gap-2">
                   <ArrowLeft className="h-4 w-4" />
                   Back to Dashboard
                 </Button>
@@ -266,137 +261,200 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const inputLang = getLanguageByCode(document.inputLanguage);
   const outputLang = getLanguageByCode(document.outputLanguage);
 
+  const isCompleted = (document.status || 'draft') === 'completed';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50">
-          <Alert className={`shadow-lg ${toast.type === 'success' ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}`}>
-            <div className="flex items-center gap-2">
-              {toast.type === 'success' ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-              ) : (
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-              )}
-              <AlertDescription className={toast.type === 'success' ? 'text-green-800' : 'text-destructive'}>
-                {toast.message}
-              </AlertDescription>
-            </div>
-          </Alert>
-        </div>
+        <Alert className={`fixed top-4 right-4 z-50 max-w-md ${toast.type === 'success' ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}`}>
+          {toast.type === 'success' ? (
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          ) : (
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          )}
+          <AlertDescription className={toast.type === 'success' ? 'text-green-800' : 'text-destructive'}>
+            {toast.message}
+          </AlertDescription>
+        </Alert>
       )}
       
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* Breadcrumb Navigation */}
-        <div className="flex justify-start">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink 
+      <div className="relative max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <Card className="mb-8">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-2">
+                <Button
                   onClick={onBackToDashboard}
-                  className="flex items-center gap-1 cursor-pointer hover:text-primary"
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-2 -ml-2 mb-2 text-muted-foreground hover:text-foreground"
                 >
-                  <Home className="w-4 h-4" />
-                  Dashboard
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage className="font-medium">Edit Document</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-
-        {/* Document Title */}
-        <div className="space-y-4">
-          <h1 className="text-3xl font-bold text-foreground">{document.title}</h1>
-          
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              onClick={() => setShowSessionRecorder(true)}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Session
-            </Button>
-            {document.sessions.length > 0 && (
-              <Button
-                onClick={generateOutlineNow}
-                variant="secondary"
-                className="flex items-center gap-2"
-                title="Generate a structured outline from your sessions"
-              >
-                <Sparkles className="h-4 w-4" />
-                Generate Outline
-              </Button>
-            )}
-            {/* Actions: always allow Generate if sessions exist; View when content exists */}
-            {document.sessions.length > 0 && (
-              <Button
-                onClick={() => onGenerateContent(documentId)}
-                className="flex items-center gap-2"
-                title="Generate content (overwrites saved content if present)"
-              >
-                <Zap className="h-4 w-4" />
-                Generate Content
-              </Button>
-            )}
-            {document.hasGeneratedContent && document.generatedContent && (
-              <Button
-                onClick={() => onViewContent && onViewContent(documentId)}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Eye className="h-4 w-4" />
-                View Content
-              </Button>
-            )}
-          </div>
-        </div>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Dashboard
+                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-2xl sm:text-3xl">{document.title}</CardTitle>
+                    <CardDescription className="flex items-center gap-4 mt-1">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(document.createdAt).toLocaleDateString()}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Languages className="h-3 w-3" />
+                        {inputLang?.nativeName} → {outputLang?.nativeName}
+                      </span>
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {/* Status Badge and Actions */}
+                <div className="flex items-center gap-3">
+                  <Badge variant={isCompleted ? "default" : "secondary"} className="text-xs">
+                    {isCompleted ? "Completed" : "Draft"}
+                  </Badge>
+                </div>
+                
+                {/* Completed: read-only header actions */}
+                {isCompleted ? (
+                  <div className="flex gap-2">
+                    {document.hasGeneratedContent && document.generatedContent && (
+                      <Button onClick={() => onViewContent && onViewContent(documentId)} className="flex items-center gap-2">
+                        <Eye className="h-4 w-4" />
+                        View Content
+                      </Button>
+                    )}
+                    {/* Status switch (Completed -> Draft) */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg border">
+                      <span className="text-xs text-muted-foreground">Draft</span>
+                      <Switch
+                        checked={true}
+                        disabled={isStatusChanging}
+                        onCheckedChange={async (checked) => {
+                          if (!checked) {
+                            try {
+                              setIsStatusChanging(true);
+                              await DocumentService.markDocumentDraft(documentId);
+                              setDocument(prev => (prev ? { ...prev, status: 'draft' } : prev));
+                            } catch (e) {
+                              alert('Failed to move back to draft');
+                            } finally {
+                              setIsStatusChanging(false);
+                            }
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-foreground font-medium">Completed</span>
+                      {isStatusChanging && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => setShowSessionRecorder(true)} className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Session
+                    </Button>
+                    {document.sessions.length > 0 && (
+                      <Button 
+                        onClick={generateOutlineNow} 
+                        variant="secondary"
+                        className="flex items-center gap-2"
+                        title="Generate a structured outline from your sessions"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Generate Outline
+                      </Button>
+                    )}
+              {/* Actions: always allow Generate if sessions exist; View when content exists */}
+                    {document.sessions.length > 0 && (
+                      <Button 
+                        onClick={() => onGenerateContent(documentId)} 
+                        className="flex items-center gap-2"
+                        title="Generate content (overwrites saved content if present)"
+                      >
+                        <Zap className="h-4 w-4" />
+                        Generate Content
+                      </Button>
+                    )}
+                    {document.hasGeneratedContent && document.generatedContent && (
+                      <Button 
+                        onClick={() => onViewContent && onViewContent(documentId)}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View Content
+                      </Button>
+                    )}
+                    {/* Status switch (Draft -> Completed) - only if generated once */}
+                    {document.hasGeneratedContent && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg border">
+                        <span className="text-xs text-muted-foreground">Draft</span>
+                        <Switch
+                          checked={false}
+                          disabled={isStatusChanging}
+                          onCheckedChange={async (checked) => {
+                            if (checked) {
+                              try {
+                                setIsStatusChanging(true);
+                                await DocumentService.markDocumentCompleted(documentId);
+                                setDocument(prev => (prev ? { ...prev, status: 'completed' } : prev));
+                              } catch (e) {
+                                alert('Failed to mark as completed');
+                              } finally {
+                                setIsStatusChanging(false);
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-foreground font-medium">Completed</span>
+                        {isStatusChanging && <Loader2 className="h-3 w-3 animate-spin ml-1" />}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
 
       {/* Document Info */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary">{document.sessions.length}</div>
-            <div className="text-sm text-muted-foreground">Sessions</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary">{formatDuration(document.totalDuration)}</div>
-            <div className="text-sm text-muted-foreground">Total Duration</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary">{document.wordCount}</div>
-            <div className="text-sm text-muted-foreground">Total Words</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-sm text-muted-foreground">Language</div>
-            <div className="text-sm font-medium text-foreground">
-              {inputLang?.nativeName} → {outputLang?.nativeName}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
+          <div className="text-2xl font-bold text-blue-600">{document.sessions.length}</div>
+          <div className="text-sm text-gray-600">Sessions</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
+          <div className="text-2xl font-bold text-green-600">{formatDuration(document.totalDuration)}</div>
+          <div className="text-sm text-gray-600">Total Duration</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
+          <div className="text-2xl font-bold text-purple-600">{document.wordCount}</div>
+          <div className="text-sm text-gray-600">Total Words</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 text-center">
+          <div className="text-sm text-gray-600">Language</div>
+          <div className="text-sm font-medium">
+            {inputLang?.nativeName} → {outputLang?.nativeName}
+          </div>
+        </div>
       </div>
 
       {/* Error Display */}
       {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600">{error}</p>
+        </div>
       )}
 
       {/* Session Recorder */}
-      {showSessionRecorder && (
+      {!isCompleted && showSessionRecorder && (
         <div className="mb-8">
           <SessionRecorder
             inputLanguage={document.inputLanguage}
@@ -408,19 +466,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
 
       {/* Combined Content Preview */}
       {document.sessions.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Combined Content Preview
-            </CardTitle>
-            <CardDescription>
+        <div className="mb-8 bg-white rounded-lg shadow-md border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-800">Combined Content Preview</h2>
+            <p className="text-gray-600 mt-1">
               This is how your content will look when combined for blog generation
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-muted-foreground">Final-style preview (for reference only)</div>
-            <div className="max-h-64 overflow-y-auto p-4 bg-muted/30 border rounded-lg">
+            </p>
+          </div>
+          <div className="p-6">
+            <div className="mb-2 text-sm text-gray-600">Final-style preview (for reference only)</div>
+            <div className="max-h-64 overflow-y-auto p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <ol className="list-decimal pl-6 space-y-3">
                 {document.sessions
                   .sort((a, b) => a.sessionNumber - b.sessionNumber)
@@ -434,12 +489,12 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                     const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
                     return (
                       <li key={session.id}>
-                        <div className="font-semibold text-foreground">{title}</div>
+                        <div className="font-semibold text-gray-900">{title}</div>
                         {description && (
-                          <div className="mt-1 text-foreground">{description}</div>
+                          <div className="mt-1 text-gray-800">{description}</div>
                         )}
                         {bullets.length > 0 && (
-                          <ul className="list-disc pl-5 mt-1 text-foreground">
+                          <ul className="list-disc pl-5 mt-1 text-gray-800">
                             {bullets.map((b, i) => (
                               <li key={i}>{b}</li>
                             ))}
@@ -450,194 +505,136 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                   })}
               </ol>
             </div>
-            <div className="text-sm text-muted-foreground text-center">
+            <div className="mt-4 text-sm text-gray-500 text-center">
               Total: {document.wordCount} words • {formatDuration(document.totalDuration)} duration
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Session History */}
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2">
-            <Mic className="h-5 w-5" />
-            Session History
-          </CardTitle>
-          <CardDescription>
-            All recorded sessions for this document
-          </CardDescription>
-        </CardHeader>
+      <div className="bg-white rounded-lg shadow-md border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800">Session History</h2>
+          <p className="text-gray-600 mt-1">
+            All recorded sessions for this document (read-only)
+          </p>
+        </div>
 
         {document.sessions.length === 0 ? (
-          <CardContent className="p-12 text-center">
-            <div className="w-16 h-16 bg-muted/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mic className="h-8 w-8 text-muted-foreground" />
+          <div className="p-12 text-center">
+            <div className="text-gray-400 mb-4">
+              <svg className="mx-auto h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
             </div>
-            <h3 className="text-lg font-medium text-foreground mb-2">No sessions yet</h3>
-            <p className="text-muted-foreground mb-4">Start recording your first session to build your document</p>
-            <Button
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No sessions yet</h3>
+            <p className="text-gray-500 mb-4">Start recording your first session to build your document</p>
+            <button
               onClick={() => setShowSessionRecorder(true)}
-              className="flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              <Mic className="h-4 w-4" />
               Record First Session
-            </Button>
-          </CardContent>
+            </button>
+          </div>
         ) : (
-          <CardContent className="p-0">
-            <div className="divide-y">
-              {document.sessions
-                .sort((a, b) => a.sessionNumber - b.sessionNumber)
-                .map((session) => (
-                  <div key={session.id} className="p-4 sm:p-6">
-                    {/* Mobile Layout (sm and below) - Two lines */}
-                    <div className="block sm:hidden space-y-3">
-                      {/* Mobile: Session Title Line */}
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-semibold">
-                          {session.sessionNumber}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-foreground flex items-center gap-2">
-                            {session.title && session.title.trim().length > 0
-                              ? session.title
-                              : `Session ${session.sessionNumber}`}
-                            {/* Edited badge for outline sessions when title differs from original outline title stored in notes */}
-                            {session.origin === 'outline' && session.title && session.notes && session.notes.startsWith('Outline:') && session.title.trim() !== session.notes.replace(/^Outline:\s*/, '').trim() && (
-                              <Badge variant="secondary" className="text-xs">
-                                Edited
-                              </Badge>
-                            )}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(session.timestamp)} • {formatDuration(session.duration)}
-                          </p>
-                        </div>
+          <div className="divide-y divide-gray-200">
+            {document.sessions
+              .sort((a, b) => a.sessionNumber - b.sessionNumber) // Ascending order
+              .map((session) => (
+                <div key={session.id} className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                        {session.sessionNumber}
                       </div>
-                      
-                      {/* Mobile: Word Count and Actions Line */}
-                      <div className="flex items-center justify-between pl-11">
-                        <span className="text-sm text-muted-foreground">
-                          {session.transcript.trim().split(/\s+/).length} words
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditSessionId(session.id)}
-                            title={`Edit ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSessionDelete(session.id)}
-                            className="text-destructive hover:text-destructive"
-                            title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Tablet/Desktop Layout (sm and above) - Single line */}
-                    <div className="hidden sm:flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-semibold">
-                          {session.sessionNumber}
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-foreground flex items-center gap-2">
-                            {session.title && session.title.trim().length > 0
-                              ? session.title
-                              : `Session ${session.sessionNumber}`}
-                            {/* Edited badge for outline sessions when title differs from original outline title stored in notes */}
-                            {session.origin === 'outline' && session.title && session.notes && session.notes.startsWith('Outline:') && session.title.trim() !== session.notes.replace(/^Outline:\s*/, '').trim() && (
-                              <Badge variant="secondary" className="text-xs">
-                                Edited
-                              </Badge>
-                            )}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(session.timestamp)} • {formatDuration(session.duration)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center text-sm text-muted-foreground gap-1 sm:gap-2">
-                        <span>{session.transcript.trim().split(/\s+/).length} words</span>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditSessionId(session.id)}
-                            title={`Edit ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleSessionDelete(session.id)}
-                            className="text-destructive hover:text-destructive"
-                            title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Session Content */}
-                    <div className="mb-4">
-                      <div className="p-4 bg-muted/30 border rounded-lg">
-                        <p className="text-foreground whitespace-pre-wrap">
-                          {session.transcript && session.transcript.trim().length > 0 ? (
-                            session.transcript
-                          ) : (
-                            <span className="text-muted-foreground italic">No transcript yet — add your input here. Use the notes below as hints.</span>
+                      <div>
+                        <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                          {session.title && session.title.trim().length > 0
+                            ? session.title
+                            : `Session ${session.sessionNumber}`}
+                          {/* Edited badge for outline sessions when title differs from original outline title stored in notes */}
+                          {session.origin === 'outline' && session.title && session.notes && session.notes.startsWith('Outline:') && session.title.trim() !== session.notes.replace(/^Outline:\s*/, '').trim() && (
+                            <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 border border-yellow-200">Edited</span>
                           )}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {formatDate(session.timestamp)} • {formatDuration(session.duration)}
                         </p>
                       </div>
                     </div>
-
-                    {/* Session Notes (for user reference only; not used in generation) */}
-                    {session.notes && session.notes.trim().length > 0 && (
-                      <div className="mt-2">
-                        {(() => {
-                          const raw = session.notes.trim();
-                          const hasSeparator = raw.includes('\n\n');
-                          const [descPart, bulletsPart] = hasSeparator ? raw.split('\n\n', 2) : [raw, ''];
-                          const description = (descPart || '').trim();
-                          const bullets = (bulletsPart || '')
-                            .split('\n')
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          return (
-                            <div>
-                              {description && (
-                                <p className="text-xs text-muted-foreground italic font-serif whitespace-pre-wrap">{description}</p>
-                              )}
-                              {bullets.length > 0 && (
-                                <ul className="list-disc pl-5 mt-1 text-xs text-muted-foreground italic font-serif">
-                                  {bullets.map((b, i) => (
-                                    <li key={i}>{b}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    )}
+                    <div className="flex items-center text-sm text-gray-500 gap-1 sm:gap-2">
+                      <span>{session.transcript.trim().split(/\s+/).length} words</span>
+                      {!isCompleted && (
+                        <>
+                          <button
+                            onClick={() => setEditSessionId(session.id)}
+                            className="text-blue-600 hover:text-blue-700 transition-colors p-1 icon-button"
+                            title={`Edit ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
+                            aria-label={`Edit ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
+                          >
+                            <Pencil className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleSessionDelete(session.id)}
+                            className="text-red-500 hover:text-red-600 transition-colors p-1 icon-button"
+                            title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
+                            aria-label={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                ))}
-            </div>
-          </CardContent>
+
+                  {/* Session Content */}
+                  <div className="mb-4">
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-gray-800 whitespace-pre-wrap">
+                        {session.transcript && session.transcript.trim().length > 0 ? (
+                          session.transcript
+                        ) : (
+                          <span className="text-gray-400 italic">No transcript yet — add your input here. Use the notes below as hints.</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Session Notes (for user reference only; not used in generation) */}
+                  {session.notes && session.notes.trim().length > 0 && (
+                    <div className="mt-2">
+                      {(() => {
+                        const raw = session.notes.trim();
+                        const hasSeparator = raw.includes('\n\n');
+                        const [descPart, bulletsPart] = hasSeparator ? raw.split('\n\n', 2) : [raw, ''];
+                        const description = (descPart || '').trim();
+                        const bullets = (bulletsPart || '')
+                          .split('\n')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        return (
+                          <div>
+                            {description && (
+                              <p className="text-xs text-gray-500 italic font-serif whitespace-pre-wrap">{description}</p>
+                            )}
+                            {bullets.length > 0 && (
+                              <ul className="list-disc pl-5 mt-1 text-xs text-gray-500 italic font-serif">
+                                {bullets.map((b, i) => (
+                                  <li key={i}>{b}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
         )}
-      </Card>
+      </div>
       {editSessionId && document && (
         <SessionEditModal
           open={true}
@@ -808,12 +805,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
         </div>
       )}
 
-      </div>
+      {/* Full-screen overlay loader during status change */}
+      {isStatusChanging && (
+        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/90 rounded-xl shadow-xl px-6 py-5 flex flex-col items-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-200 border-t-blue-600 mb-3"></div>
+            <div className="text-sm text-gray-700">Applying status change…</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Overlay loader shown during status changes; keeps background visible but blocks interaction
-
-import SessionRecorder from './SessionRecorder';
-import SessionEditModal from './SessionEditModal';

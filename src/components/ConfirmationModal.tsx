@@ -4,6 +4,27 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DocumentWithSessions } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { getLanguageByCode } from '@/lib/languages';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { 
+  Zap,
+  FileText,
+  Twitter,
+  Linkedin,
+  Rss,
+  Mic,
+  AlertTriangle,
+  Loader2
+} from 'lucide-react';
 
 interface ConfirmationModalProps {
   documentId: string;
@@ -45,151 +66,159 @@ export default function ConfirmationModal({ documentId, isOpen, onClose, onConfi
       .join(' ');
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-white/20">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200/50 bg-white/80">
-          <h2 className="text-2xl font-bold text-gray-800">🚀 Generate Blog Content</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
-          >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-2xl">
+            <Zap className="h-6 w-6 text-primary" />
+            Generate Content
+          </DialogTitle>
+          <DialogDescription>
+            Review your document content and confirm to generate platform-specific versions
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)] bg-white/60">
+        <div className="space-y-6">
           {isLoading ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading document content...</p>
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+              <p className="mt-4 text-muted-foreground">Loading document content...</p>
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-600">{error}</p>
-              <button
-                onClick={onClose}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>{error}</span>
+                <Button variant="outline" size="sm" onClick={onClose}>
+                  Close
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : document ? (
             <div className="space-y-6">
               {/* Document Info */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 rounded-xl p-4 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-blue-600">{document.title}</div>
-                    <div className="text-sm text-blue-600">Document Title</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-green-600">{document.sessions.length}</div>
-                    <div className="text-sm text-green-600">Total Sessions</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-purple-600">{document.wordCount}</div>
-                    <div className="text-sm text-purple-600">Total Words</div>
-                  </div>
-                </div>
-                <div className="mt-3 text-center">
-                  <span className="text-sm text-blue-600">
+              <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-orange-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-center text-xl text-foreground">{document.title}</CardTitle>
+                  <CardDescription className="text-center">
                     Language: {getLanguageByCode(document.inputLanguage)?.nativeName} → {getLanguageByCode(document.outputLanguage)?.nativeName}
-                  </span>
-                </div>
-              </div>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                    <div className="p-3 bg-background/50 rounded-lg">
+                      <div className="text-2xl font-bold text-primary">{document.sessions.length}</div>
+                      <div className="text-sm text-muted-foreground">Total Sessions</div>
+                    </div>
+                    <div className="p-3 bg-background/50 rounded-lg">
+                      <div className="text-2xl font-bold text-primary">{document.wordCount}</div>
+                      <div className="text-sm text-muted-foreground">Total Words</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Combined Transcript Preview */}
-              <div>
-                <h3 className="font-semibold text-gray-800 mb-3">📝 Combined Content Preview</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  This is the complete content that will be processed for blog generation:
-                </p>
-                <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200/50 rounded-xl p-4 max-h-64 overflow-y-auto shadow-sm">
-                  <p className="text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">
-                    {getCombinedTranscript()}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Combined Content Preview
+                  </CardTitle>
+                  <CardDescription>
+                    This is the complete content that will be processed for content generation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-muted/30 border rounded-lg p-4 max-h-64 overflow-y-auto">
+                    <p className="text-foreground whitespace-pre-wrap text-sm leading-relaxed">
+                      {getCombinedTranscript()}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    Scroll to see full content • {document.wordCount} words total
                   </p>
-                </div>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  Scroll to see full content • {document.wordCount} words total
-                </p>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* What Will Be Generated */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 rounded-xl p-4 shadow-sm">
-                <h3 className="font-semibold text-green-800 mb-2">🎯 What Will Be Generated</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div className="text-center bg-white/50 p-3 rounded-lg">
-                    <div className="text-lg">📘</div>
-                    <div className="font-medium text-green-700">Blog Post</div>
+              <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-orange-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    What Will Be Generated
+                  </CardTitle>
+                  <CardDescription>
+                    AI will optimize your content for each platform while preserving your original message
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="text-center bg-background/50 p-3 rounded-lg border">
+                      <Rss className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <div className="font-medium text-foreground">Blog Post</div>
+                    </div>
+                    <div className="text-center bg-background/50 p-3 rounded-lg border">
+                      <Linkedin className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                      <div className="font-medium text-foreground">LinkedIn</div>
+                    </div>
+                    <div className="text-center bg-background/50 p-3 rounded-lg border">
+                      <Twitter className="h-8 w-8 mx-auto mb-2 text-sky-500" />
+                      <div className="font-medium text-foreground">Twitter</div>
+                    </div>
+                    <div className="text-center bg-background/50 p-3 rounded-lg border">
+                      <Mic className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <div className="font-medium text-foreground">Podcast</div>
+                    </div>
                   </div>
-                  <div className="text-center bg-white/50 p-3 rounded-lg">
-                    <div className="text-lg">💼</div>
-                    <div className="font-medium text-green-700">LinkedIn</div>
-                  </div>
-                  <div className="text-center bg-white/50 p-3 rounded-lg">
-                    <div className="text-lg">🐦</div>
-                    <div className="font-medium text-green-700">Twitter</div>
-                  </div>
-                  <div className="text-center bg-white/50 p-3 rounded-lg">
-                    <div className="text-lg">🎙️</div>
-                    <div className="font-medium text-green-700">Podcast</div>
-                  </div>
-                </div>
-                <p className="text-sm text-green-700 mt-3 text-center">
-                  AI will optimize your content for each platform while preserving your original message
-                </p>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Warning */}
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200/50 rounded-xl p-4 shadow-sm">
-                <div className="flex items-start space-x-3">
-                  <div className="text-yellow-600 mt-0.5">
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                  </div>
+              <Alert className="border-orange-200 bg-orange-50">
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+                <AlertDescription>
                   <div>
-                    <h4 className="font-medium text-yellow-800">Important Note</h4>
-                    <p className="text-sm text-yellow-700 mt-1">
+                    <h4 className="font-medium text-orange-800 mb-1">Important Note</h4>
+                    <p className="text-sm text-orange-700">
                       Once you confirm, AI will process your content and generate platform-specific versions. 
                       You can always go back to edit your document and regenerate content later.
                     </p>
                   </div>
-                </div>
-              </div>
+                </AlertDescription>
+              </Alert>
             </div>
           ) : null}
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200/50 bg-white/80">
-          <button
+        <DialogFooter className="flex items-center justify-end space-x-3">
+          <Button
+            variant="outline"
             onClick={onClose}
             disabled={isProcessing}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={onConfirm}
             disabled={!document || isProcessing}
-            className={`px-6 py-2 rounded-lg font-medium transition-all ${
-              document && !isProcessing
-                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-lg transform hover:scale-105'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            className="flex items-center gap-2"
           >
-            {isProcessing ? 'Generating...' : 'Generate Blog Content'}
-          </button>
-        </div>
-      </div>
-    </div>
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Zap className="h-4 w-4" />
+                Generate Content
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

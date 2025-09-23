@@ -3,14 +3,57 @@ import React, { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { DocumentService } from "@/lib/documentService";
 import { UserService } from "@/lib/userService";
+import ContentProcessor from "@/components/ContentProcessor";
 
 export default function GenerateContentPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const docId = params?.id as string;
   const [error, setError] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [document, setDocument] = useState<any>(null);
   const hasRunRef = useRef<boolean>(false);
+
+  // Move handleProcessingComplete outside useEffect so it's accessible
+  const handleProcessingComplete = async (content: any[]) => {
+    try {
+      // Convert ContentProcessor format to expected format
+      const twitterContent = content.find((c: any) => c.platform === 'Twitter')?.content || '';
+      const twitterThreadContent = content.find((c: any) => c.platform === 'Twitter with Thread')?.content || '';
+      
+      // Extract Twitter thread from the thread content if it contains numbered tweets
+      let twitterThread: string[] = [];
+      if (twitterThreadContent && (twitterThreadContent.includes('Thread 🧵') || twitterThreadContent.includes('/'))) {
+        // Split by numbered tweets (1/, 2/, 3/, etc.) and clean up
+        const threadParts = twitterThreadContent.split(/\n*\d+\/\s*/).filter(part => part.trim());
+        if (threadParts.length > 1) {
+          // Remove the "Thread 🧵" prefix if it exists
+          twitterThread = threadParts.map(part => part.replace(/^Thread 🧵\s*/, '').trim()).filter(Boolean);
+        }
+      }
+      
+      const formattedContent = {
+        blog: content.find((c: any) => c.platform === 'Blog Post')?.content || '',
+        linkedin: content.find((c: any) => c.platform === 'LinkedIn')?.content || '',
+        twitter: twitterContent,
+        podcast: content.find((c: any) => c.platform === 'Podcast Script')?.content || '',
+        inputLanguage: document?.inputLanguage || 'en',
+        outputLanguage: document?.outputLanguage || 'en',
+        twitterThread: twitterThread.length > 0 ? twitterThread : [],
+      };
+
+      await DocumentService.saveGeneratedContent(docId, formattedContent);
+
+      await fetch(`/api/userDocuments/${docId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requiresRegeneration: false }),
+      });
+
+      router.replace(`/docs/${docId}/view-content`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    }
+  };
 
   useEffect(() => {
     if (!UserService.isAuthenticated()) {
@@ -23,97 +66,61 @@ export default function GenerateContentPage() {
 
     const run = async () => {
       try {
-        setIsLoading(true);
-        const document = await DocumentService.getDocumentWithSessions(docId);
-        // Build the same structure as Combined Content Preview: numbered title + description + bullets
-        const combinedTranscript = document.sessions
-          .sort((a, b) => a.sessionNumber - b.sessionNumber)
-          .map((s, idx) => {
-            const indexLabel = `${idx + 1}.`;
-            const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
-            const raw = (s.transcript || '').trim();
-            const chunks = raw.split(/\n{2,}/);
-            const description = chunks[0] || '';
-            const rest = chunks.slice(1).join('\n');
-            const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
-            const bulletText = bullets.length ? bullets.map((b) => `- ${b}`).join('\n') : '';
-            return [
-              `${indexLabel} ${title}`,
-              description,
-              bulletText
-            ].filter(Boolean).join('\n');
-          })
-          .join("\n\n");
-
-        const res = await fetch("/api/generate-content", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: combinedTranscript,
-            inputLanguage: document.inputLanguage,
-            outputLanguage: document.outputLanguage,
-          }),
-        });
-
-        if (!res.ok) throw new Error(`Generate failed ${res.status}`);
-        const content = await res.json();
-
-        await DocumentService.saveGeneratedContent(docId, {
-          blog: content.blogPost,
-          linkedin: content.linkedinPost,
-          twitter: content.twitterPost,
-          podcast: content.podcastScript,
-          inputLanguage: document.inputLanguage,
-          outputLanguage: document.outputLanguage,
-          twitterThread: content.twitterThread,
-        });
-
-        await fetch(`/api/userDocuments/${docId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ requiresRegeneration: false }),
-        });
-
-        router.replace(`/docs/${docId}/view-content`);
+        const doc = await DocumentService.getDocumentWithSessions(docId);
+        setDocument(doc);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Unknown error");
-      } finally {
-        setIsLoading(false);
       }
     };
 
     if (docId) run();
-  }, [docId]);
+  }, [docId, router]);
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="container mx-auto px-4">
-        {isLoading ? (
-          <div className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg">
-            <div className="flex items-center justify-center mb-6">
-              <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin"></div>
-            </div>
-            <div className="animate-pulse">
-              <div className="h-6 w-1/3 bg-gray-200 rounded mb-4"></div>
-              <div className="space-y-3">
-                <div className="h-4 w-full bg-gray-200 rounded"></div>
-                <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-            {error && <p className="text-red-600 mt-4 text-center">{error}</p>}
+  if (error) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-background to-muted/20 py-8">
+        <div className="container mx-auto px-4">
+          <div className="max-w-2xl mx-auto p-6 bg-destructive/10 border border-destructive/20 rounded-lg text-center">
+            <h2 className="text-2xl font-bold text-destructive mb-2">Error</h2>
+            <p className="text-destructive">{error}</p>
           </div>
-        ) : (
-          <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Finalizing…</h2>
-            <p className="text-gray-600">Redirecting to view content.</p>
-            {error && (
-              <p className="text-red-600 mt-4">{error}</p>
-            )}
-          </div>
-        )}
-      </div>
-    </main>
-  );
+        </div>
+      </main>
+    );
+  }
+
+  if (document) {
+    // Build combined transcript
+    const combinedTranscript = document.sessions
+      .sort((a: any, b: any) => a.sessionNumber - b.sessionNumber)
+      .map((s: any, idx: number) => {
+        const indexLabel = `${idx + 1}.`;
+        const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
+        const raw = (s.transcript || '').trim();
+        const chunks = raw.split(/\n{2,}/);
+        const description = chunks[0] || '';
+        const rest = chunks.slice(1).join('\n');
+        const bullets = rest ? rest.split(/\n+/).filter(Boolean) : [];
+        const bulletText = bullets.length ? bullets.map((b: string) => `- ${b}`).join('\n') : '';
+        return [
+          `${indexLabel} ${title}`,
+          description,
+          bulletText
+        ].filter(Boolean).join('\n');
+      })
+      .join("\n\n");
+
+    return (
+      <ContentProcessor
+        originalText={combinedTranscript}
+        languageSettings={{
+          inputLanguage: document.inputLanguage,
+          outputLanguage: document.outputLanguage,
+        }}
+        onProcessingComplete={handleProcessingComplete}
+      />
+    );
+  }
+
+  return null;
 }

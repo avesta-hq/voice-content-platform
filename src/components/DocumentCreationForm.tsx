@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Mic, FileText, ArrowRight, Lightbulb, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Mic, FileText, ArrowRight, Lightbulb, Loader2, CheckCircle2, Circle } from 'lucide-react';
 
 interface DocumentCreationFormProps {
   onDocumentCreated: (documentId: string) => void;
@@ -84,11 +86,25 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
     }
   };
 
+  // Calculate form completion progress
+  const getFormProgress = () => {
+    let completed = 0;
+    const total = 3;
+    
+    if (formData.title.trim().length >= 3) completed++;
+    if (formData.inputLanguage) completed++;
+    if (formData.outputLanguage) completed++;
+    
+    return (completed / total) * 100;
+  };
+
+  const isFormValid = formData.title.trim().length >= 3 && formData.inputLanguage && formData.outputLanguage;
+
   return (
     <div className="min-h-screen flex items-start sm:items-center justify-center p-4 pt-8 sm:pt-4">
       <div className="w-full max-w-lg space-y-6 sm:space-y-8">
         {/* Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-3">
           <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mb-3 sm:mb-4">
             <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           </div>
@@ -96,6 +112,21 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
           <p className="text-sm sm:text-base text-muted-foreground px-4 sm:px-0">
             Set up your document and start your voice content journey
           </p>
+          
+          {/* Progress Indicator */}
+          <div className="space-y-2 px-4 sm:px-0">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Setup Progress</span>
+              <span>{Math.round(getFormProgress())}% Complete</span>
+            </div>
+            <Progress value={getFormProgress()} className="h-2" />
+            {isFormValid && (
+              <div className="flex items-center justify-center gap-1 text-xs text-primary">
+                <CheckCircle2 className="h-3 w-3" />
+                <span>Ready to create!</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Main Form Card */}
@@ -104,11 +135,18 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {/* Title Input */}
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-sm sm:text-base font-medium flex items-center gap-2">
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                    <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                <Label htmlFor="title" className="text-sm sm:text-base font-medium flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary/10 rounded-md flex items-center justify-center">
+                      <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                    </div>
+                    Document Title
                   </div>
-                  Document Title
+                  {formData.title.trim().length >= 3 ? (
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Circle className="h-4 w-4 text-muted-foreground" />
+                  )}
                 </Label>
                 <Input
                   type="text"
@@ -136,11 +174,18 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
                 <div className="space-y-3 sm:space-y-4">
                   {/* Input Language */}
                   <div className="space-y-2">
-                    <Label className="text-sm sm:text-base font-medium flex items-center gap-2">
-                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                        <Mic className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                    <Label className="text-sm sm:text-base font-medium flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary/10 rounded-md flex items-center justify-center">
+                          <Mic className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                        </div>
+                        Speech Language
                       </div>
-                      Speech Language
+                      {formData.inputLanguage ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </Label>
                     <Select
                       value={formData.inputLanguage}
@@ -164,11 +209,18 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
 
                   {/* Output Language */}
                   <div className="space-y-2">
-                    <Label className="text-sm sm:text-base font-medium flex items-center gap-2">
-                      <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary/10 rounded-md flex items-center justify-center">
-                        <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                    <Label className="text-sm sm:text-base font-medium flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 bg-primary/10 rounded-md flex items-center justify-center">
+                          <FileText className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary" />
+                        </div>
+                        Content Language
                       </div>
-                      Content Language
+                      {formData.outputLanguage ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </Label>
                     <Select
                       value={formData.outputLanguage}
@@ -279,7 +331,7 @@ export default function DocumentCreationForm({ onDocumentCreated, onCancel }: Do
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isLoading || !formData.title.trim()}
+                  disabled={isLoading || !isFormValid}
                   className="order-1 sm:order-2 flex-1 h-11 sm:h-12 text-sm sm:text-base font-semibold"
                 >
                   {isLoading ? (

@@ -3,7 +3,46 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformContent } from '@/types';
 import { DocumentService } from '@/lib/documentService';
-import { Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { 
+  Pencil, 
+  Copy, 
+  CheckCircle2, 
+  Home, 
+  ChevronDown, 
+  ChevronUp,
+  Mic,
+  Sparkles,
+  RefreshCw,
+  Save,
+  AlertTriangle,
+  Eye,
+  Edit3,
+  Zap,
+  FileText,
+  MessageSquare,
+  Twitter,
+  Linkedin,
+  Rss,
+  Play,
+  Loader2
+} from 'lucide-react';
 
 interface ContentDisplayProps {
   originalText: string;
@@ -22,10 +61,24 @@ function escapeHtml(input: string): string {
 function markdownToHtml(markdown: string): string {
   // Escape first to avoid tag injection
   let html = escapeHtml(markdown);
-  // Bold: **text** (non-greedy, supports multiline) without lookbehind or 's'
-  html = html.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
+  
+  // Headers: # Title, ## Subtitle, ### Section
+  html = html.replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold mt-6 mb-3 pb-2 border-b border-current/20">$1</h3>');
+  html = html.replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mt-8 mb-4 pb-2 border-b-2 border-current/30">$1</h2>');
+  html = html.replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-8 mb-6 pb-3 border-b-2 border-current/40">$1</h1>');
+  
+  // Bold: **text** (non-greedy, supports multiline)
+  html = html.replace(/\*\*([\s\S]+?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  
   // Italic: *text* (non-greedy, supports multiline)
-  html = html.replace(/\*([\s\S]+?)\*/g, '<em>$1</em>');
+  html = html.replace(/\*([\s\S]+?)\*/g, '<em class="italic">$1</em>');
+  
+  // Lists: - item or * item
+  html = html.replace(/^[\-\*] (.+$)/gm, '<li class="ml-4 mb-1">• $1</li>');
+  
+  // Wrap consecutive list items in ul
+  html = html.replace(/(<li[^>]*>.*<\/li>\s*)+/g, '<ul class="space-y-1 my-4">$&</ul>');
+  
   // IMPORTANT: keep original newlines/spaces; selection copy container uses white-space: pre-wrap
   return html;
 }
@@ -85,7 +138,22 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const active = tabs.find(t => t.key === activeTab) || tabs[0];
 
-  const getOriginalForKey = (key: string) => tabs.find(t => t.key === key)?.content || '';
+  const getOriginalForKey = (key: string) => {
+    const tab = tabs.find(t => t.key === key);
+    if (!tab) return '';
+    
+    // Check for dynamically loaded content first
+    if (tab.label === 'Podcast Script' && podcastContent) {
+      return podcastContent;
+    }
+    if (tab.label === 'Blog Post' && blogContent) {
+      return blogContent;
+    }
+    
+    // Fall back to original content
+    return tab.content || '';
+  };
+  
   const getDisplayForKey = (key: string) => {
     if (editedByPlatform[key]) return editedByPlatform[key];
     if (refinedByPlatform[key]?.text) return refinedByPlatform[key].text;
@@ -398,574 +466,432 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
     setRefinedSaved(prev => ({ ...prev, [key]: false }));
   };
 
+  // Helper function to get platform icons with branding
+  const getPlatformIcon = (platform: string, size: 'sm' | 'md' | 'lg' = 'sm') => {
+    const platformLower = platform.toLowerCase();
+    const sizeClasses = {
+      sm: 'w-4 h-4',
+      md: 'w-5 h-5', 
+      lg: 'w-6 h-6'
+    };
+    
+    if (platformLower.includes('twitter')) return <Twitter className={`${sizeClasses[size]} text-[#1DA1F2]`} />;
+    if (platformLower.includes('linkedin')) return <Linkedin className={`${sizeClasses[size]} text-[#0A66C2]`} />;
+    if (platformLower.includes('blog')) return <FileText className={`${sizeClasses[size]} text-[#FF6B35]`} />;
+    if (platformLower.includes('podcast')) return <Play className={`${sizeClasses[size]} text-[#9146FF]`} />;
+    return <MessageSquare className={`${sizeClasses[size]} text-primary`} />;
+  };
+
+  // Helper function to get platform branding colors
+  const getPlatformBranding = (platform: string) => {
+    const platformLower = platform.toLowerCase();
+    
+    // Check for Twitter Thread specifically
+    if (platformLower.includes('twitter') && platformLower.includes('thread')) {
+      return {
+        primary: '#1DA1F2',
+        secondary: '#E8F5FE',
+        accent: '#1A91DA',
+        name: 'Twitter Thread',
+        shortName: 'Thread'
+      };
+    }
+    // Regular Twitter
+    if (platformLower.includes('twitter')) {
+      return {
+        primary: '#1DA1F2',
+        secondary: '#E8F5FE',
+        accent: '#1A91DA',
+        name: 'Twitter',
+        shortName: 'Twitter'
+      };
+    }
+    if (platformLower.includes('linkedin')) {
+      return {
+        primary: '#0A66C2',
+        secondary: '#E7F3FF',
+        accent: '#004182',
+        name: 'LinkedIn',
+        shortName: 'LinkedIn'
+      };
+    }
+    if (platformLower.includes('blog')) {
+      return {
+        primary: '#FF6B35',
+        secondary: '#FFF4F1',
+        accent: '#E55A2B',
+        name: 'Blog',
+        shortName: 'Blog'
+      };
+    }
+    if (platformLower.includes('podcast')) {
+      return {
+        primary: '#9146FF',
+        secondary: '#F4F0FF',
+        accent: '#7C3AED',
+        name: 'Podcast',
+        shortName: 'Podcast'
+      };
+    }
+    
+    // Handle any long platform names by truncating intelligently
+    const cleanName = platform.replace(/\s+/g, ' ').trim();
+    const shortName = cleanName.length > 10 ? cleanName.substring(0, 8) + '...' : cleanName;
+    
+    return {
+      primary: 'hsl(var(--primary))',
+      secondary: 'hsl(var(--muted))',
+      accent: 'hsl(var(--primary))',
+      name: cleanName,
+      shortName: shortName
+    };
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-4">
-      {/* Hero Section */}
-      <div className="text-center mb-12">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full mb-6 shadow-lg">
-          <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Breadcrumb Navigation */}
+        <div className="flex justify-start">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink 
+                  onClick={onBackToDashboard}
+                  className="flex items-center gap-1 cursor-pointer hover:text-primary"
+                >
+                  <Home className="w-4 h-4" />
+                  Dashboard
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">Content View</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-        <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-4">
-          Content Generation Complete! 🎉
-        </h2>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Your voice has been magically transformed into multiple professional content formats while preserving your original message.
+
+        {/* Enhanced Header Section */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-lg">
+              <Sparkles className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                Your Content is Ready
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Professional content optimized for each platform
         </p>
       </div>
-
-      {/* Back to Dashboard hyperlink */}
-      <div className="mb-4">
-        <button
-          onClick={onBackToDashboard}
-          className="text-indigo-600 hover:text-indigo-700 underline font-medium inline-flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Back to Dashboard</span>
-        </button>
+          </div>
       </div>
 
-      <div className="mb-8">
-        <button
-          type="button"
+        {/* Ultra-Compact Original Voice Input Card */}
+        <Card className="border-primary/20">
+          <CardHeader className="py-3 px-4">
+            <Button
+              variant="ghost"
           onClick={() => setShowOriginal(v => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50"
-          aria-expanded={showOriginal}
-          aria-controls="original-voice-content"
-        >
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
+              className="w-full justify-between p-0 h-auto hover:bg-transparent"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center">
+                  <Mic className="w-3 h-3 text-primary-foreground" />
             </div>
-            <h3 className="text-xl font-bold text-gray-800">Original Voice Input</h3>
+                <div className="text-left">
+                  <CardTitle className="text-base font-medium">Original Voice Input</CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">View transcript</CardDescription>
           </div>
-          <svg className={`w-5 h-5 text-gray-500 transition-transform ${showOriginal ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        <div
-          id="original-voice-content"
-          className="mt-3 overflow-hidden border-2 border-orange-200 rounded-xl shadow-lg bg-gradient-to-r from-orange-50 to-red-50 transition-all duration-300 ease-out"
-          style={{ maxHeight: showOriginal ? originalMaxHeight : 0, opacity: showOriginal ? 1 : 0 }}
-        >
-          <div ref={originalRef} className="p-6">
-            <p className="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">{originalText}</p>
           </div>
+              {showOriginal ? (
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+              )}
+            </Button>
+          </CardHeader>
+          {showOriginal && (
+            <CardContent className="pt-0 px-4 pb-4">
+              <div className="p-3 bg-primary/5 rounded-lg border border-primary/10">
+                <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+                  {originalText}
+                </p>
         </div>
-      </div>
+            </CardContent>
+          )}
+        </Card>
 
-      {/* Generated Content - Tabbed */}
+        {/* Enhanced Platform Content Section */}
       <div className="space-y-6">
-        <div className="text-center">
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">✨ Generated Content</h3>
-          <p className="text-gray-600">Switch between platforms using the tabs below</p>
+          {/* Ultra-Modern Platform Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="space-y-4 mb-6">
+              <div className="text-center sm:text-left">
+                <h2 className="text-2xl font-bold tracking-tight">Platform Content</h2>
+                <p className="text-muted-foreground">
+                  Choose a platform to view optimized content
+                </p>
         </div>
 
-        {/* Tabs */}
-        <div className="w-full overflow-x-auto">
-          <div role="tablist" aria-label="Generated content tabs" className="inline-flex min-w-full md:min-w-0 gap-2 border-b border-gray-200 pb-2">
-            {tabs.map(t => (
-              <button
+              {/* Modern Full-Width Horizontal Tabs */}
+              <div className="bg-muted/30 p-1 rounded-lg">
+                <div className="flex justify-between">
+                  {tabs.map(t => {
+                    const branding = getPlatformBranding(t.label);
+                    const isActive = t.key === activeTab;
+                    return (
+                      <Button
                 key={t.key}
-                role="tab"
-                aria-selected={t.key === activeTab}
+                        variant="ghost"
                 onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-2 rounded-t-md whitespace-nowrap font-medium transition-colors ${
-                  t.key === activeTab
-                    ? 'bg-white text-blue-700 border border-gray-200 border-b-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Active Content Card */}
-        {active && (
-          <div className="group">
-            <div className={`border-2 ${selectedStyle.borderColor} rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300`}>
-              {/* Platform Header */}
-              <div className={`bg-gradient-to-r ${selectedStyle.headerBg} px-6 py-4 text-white`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{selectedStyle.headerIcon}</span>
-                    <h4 className="text-xl font-bold capitalize">{active.label}</h4>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
-                      <span className="text-xs bg-white/20 px-2 py-1 rounded">Refined{refinedSaved[active.key] ? ' • Saved' : ''}</span>
-                    ) : null}
-                    <button
-                      onClick={() => openCommentModal(active.key)}
-                      className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-md text-sm font-semibold"
-                    >
-                      Refine this output
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditPlatformKey(active.key);
-                        setEditError('');
-                        // Seed edit text: prefer edited > refined (unsaved) > original
-                        setEditText(getDisplayForKey(active.key));
-                        setIsEditOpen(true);
-                      }}
-                      className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-md"
-                      title="Edit content"
-                      aria-label="Edit content"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Content Body */}
-              <div className="p-6 bg-white">
-                {/* Twitter thread rendering */}
-                {active.label === 'Twitter' && twitterThread && twitterThread.length > 1 ? (
-                  <div className="mb-6 space-y-3">
-                    {twitterThread.map((tweet, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
-                          <span>Tweet {idx + 1}</span>
-                          <span>{tweet.length}/280</span>
-                        </div>
-                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{tweet}</pre>
-                      </div>
-                    ))}
-                  </div>
-                ) : active.label === 'Twitter with thread' && twitterThread && twitterThread.length > 0 ? (
-                  <div className="mb-6 space-y-3">
-                    {twitterThread.map((tweet, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
-                          <span>Tweet {idx + 1}</span>
-                          <span>{tweet.length}/280</span>
-                        </div>
-                        <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{tweet}</pre>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {/* Podcast lazy generation states */}
-                {active.label === 'Podcast Script' && podcastLoading && (
-                  <div
-                    className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6"
-                    role="status"
-                    aria-live="polite"
-                    aria-busy="true"
-                  >
-                    <div className="flex items-center justify-center mb-4">
-                      <div className="h-10 w-10 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" aria-label="Loading"></div>
-                    </div>
-                    <p className="text-center text-sm text-gray-600 mb-6">Generating your podcast script… this may take ~10–15s.</p>
-
-                    {/* Simple waveform bars */}
-                    <div className="flex items-end justify-center gap-1 h-16 mb-6">
-                      <div className="w-2 bg-purple-200 rounded animate-pulse" style={{ height: '40%' }}></div>
-                      <div className="w-2 bg-purple-300 rounded animate-pulse" style={{ height: '70%' }}></div>
-                      <div className="w-2 bg-purple-400 rounded animate-pulse" style={{ height: '90%' }}></div>
-                      <div className="w-2 bg-purple-300 rounded animate-pulse" style={{ height: '65%' }}></div>
-                      <div className="w-2 bg-purple-200 rounded animate-pulse" style={{ height: '45%' }}></div>
-                    </div>
-
-                    <div className="space-y-5">
-                      <div className="animate-pulse">
-                        <div className="h-5 w-40 bg-gray-200 rounded mb-3"></div>
-                        <div className="space-y-2">
-                          <div className="h-4 w-full bg-gray-200 rounded"></div>
-                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                        </div>
-                      </div>
-                      <div className="animate-pulse">
-                        <div className="h-5 w-44 bg-gray-200 rounded mb-3"></div>
-                        <div className="space-y-2">
-                          <div className="h-4 w-full bg-gray-200 rounded"></div>
-                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                          <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
-                        </div>
-                      </div>
-                      <div className="animate-pulse">
-                        <div className="h-5 w-36 bg-gray-200 rounded mb-3"></div>
-                        <div className="space-y-2">
-                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                          <div className="h-4 w-8/12 bg-gray-200 rounded"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {active.label === 'Podcast Script' && podcastError && (
-                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center justify-between gap-3">
-                    <span>{podcastError}</span>
-                    <button
-                      onClick={async () => {
-                        try {
-                          setPodcastError('');
-                          setPodcastLoading(true);
-                          const parts = window.location.pathname.split('/');
-                          const docId = parts[parts.indexOf('docs') + 1];
-                          const res = await fetch('/api/generate-podcast', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ documentId: docId })
-                          });
-                          if (!res.ok) {
-                            const j = await res.json().catch(() => null);
-                            throw new Error(j?.error || `Status ${res.status}`);
-                          }
-                          const data = await res.json();
-                          setPodcastContent(data.podcastScript || '');
-                        } catch (e) {
-                          setPodcastError(e instanceof Error ? e.message : 'Failed to generate');
-                        } finally {
-                          setPodcastLoading(false);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-
-                {/* Blog lazy generation states */}
-                {active.label === 'Blog Post' && blogLoading && (
-                  <div
-                    className="max-w-3xl mx-auto p-6 bg-white rounded-2xl shadow-lg mb-6"
-                    role="status"
-                    aria-live="polite"
-                    aria-busy="true"
-                  >
-                    <div className="flex items-center justify-center mb-4">
-                      <div className="h-10 w-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" aria-label="Loading"></div>
-                    </div>
-                    <p className="text-center text-sm text-gray-600 mb-6">Crafting your long-form blog post… this can take ~10–15s.</p>
-
-                    <div className="animate-pulse">
-                      {/* Title */}
-                      <div className="h-8 w-2/3 bg-gray-200 rounded mb-3"></div>
-                      {/* Metadata */}
-                      <div className="flex items-center gap-2 mb-6">
-                        <div className="h-4 w-20 bg-gray-200 rounded"></div>
-                        <div className="h-4 w-16 bg-gray-200 rounded"></div>
-                        <div className="h-4 w-24 bg-gray-200 rounded"></div>
-                      </div>
-                      {/* Paragraphs */}
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="h-4 w-full bg-gray-200 rounded"></div>
-                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                        </div>
-                        <div className="h-6 w-40 bg-gray-200 rounded mt-6"></div>
-                        <div className="space-y-2">
-                          <div className="h-4 w-full bg-gray-200 rounded"></div>
-                          <div className="h-4 w-10/12 bg-gray-200 rounded"></div>
-                          <div className="h-4 w-9/12 bg-gray-200 rounded"></div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="h-4 w-full bg-gray-200 rounded"></div>
-                          <div className="h-4 w-11/12 bg-gray-200 rounded"></div>
-                          <div className="h-4 w-8/12 bg-gray-200 rounded"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {active.label === 'Blog Post' && blogError && (
-                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center justify-between gap-3">
-                    <span>{blogError}</span>
-                    <button
-                      onClick={async () => {
-                        try {
-                          setBlogError('');
-                          setBlogLoading(true);
-                          const parts = window.location.pathname.split('/');
-                          const docId = parts[parts.indexOf('docs') + 1];
-                          const res = await fetch('/api/generate-blog', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ documentId: docId })
-                          });
-                          if (!res.ok) {
-                            const j = await res.json().catch(() => null);
-                            throw new Error(j?.error || `Status ${res.status}`);
-                          }
-                          const data = await res.json();
-                          setBlogContent(data.blogPost || '');
-                        } catch (e) {
-                          setBlogError(e instanceof Error ? e.message : 'Failed to generate');
-                        } finally {
-                          setBlogLoading(false);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-md"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-
-                {/* While loading Blog/Podcast, hide main content and actions */}
-                {!(
-                  (active.label === 'Podcast Script' && podcastLoading) ||
-                  (active.label === 'Blog Post' && blogLoading)
-                ) && (
-                  <>
-                    {/* When refined exists: show split view; else show only original */}
-                    {active.label !== 'Twitter' && active.label !== 'Twitter with thread' && refinedByPlatform[active.key] && !editedByPlatform[active.key] ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-                        <div className="flex flex-col h-full">
-                          <div className="text-sm text-gray-500 mb-2">Original</div>
-                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex-1">
-                            <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                              {getOriginalForKey(active.key)}
-                            </pre>
-                          </div>
-                        </div>
-                        <div className="flex flex-col h-full">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="text-sm text-gray-500">Refined</div>
-                            {/* Reset to original temporarily disabled */}
-                            {false && (
-                              <button
-                                onClick={() => resetRefinement(active.key)}
-                                className="text-sm text-blue-600 hover:text-blue-700 underline"
-                              >
-                                Reset to original
-                              </button>
-                            )}
-                          </div>
-                          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[120px] flex-1">
-                            <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">{refinedByPlatform[active.key]?.text}</pre>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="text-sm text-gray-500 mb-2">Original</div>
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                          <pre className="whitespace-pre-wrap text-gray-800 leading-relaxed text-base font-medium">
-                            {active.label === 'Podcast Script' && podcastContent ? podcastContent : active.label === 'Blog Post' && blogContent ? blogContent : getDisplayForKey(active.key)}
-                          </pre>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Row: left (Copy/Download), right (Save new content) */}
-                    <div className="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          onClick={() => copyToClipboard(getDisplayForKey(active.key), active.key)}
-                          className={`px-6 py-3 rounded-xl transition-all duration-300 font-semibold flex items-center space-x-2 ${
-                            copiedStates[active.key]
-                              ? 'bg-green-500 text-white cursor-default shadow-lg'
-                              : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 hover:shadow-lg transform hover:scale-105'
-                          }`}
-                          disabled={copiedStates[active.key]}
+                        className={`flex-1 px-3 sm:px-4 py-3 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 rounded-md transition-all duration-200 min-w-0 ${
+                          isActive 
+                            ? 'bg-background shadow-sm' 
+                            : 'hover:bg-background/50'
+                        }`}
+                        style={{
+                          color: isActive ? branding.primary : 'hsl(var(--muted-foreground))'
+                        }}
+                      >
+                        <div 
+                          className="w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center flex-shrink-0"
                         >
-                          {copiedStates[active.key] ? (
-                            <>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
+                          {getPlatformIcon(t.label, 'sm')}
+                    </div>
+                        <span className="font-medium text-xs sm:text-sm text-center leading-tight">
+                          {branding.shortName}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                    </div>
+                        </div>
+                      </div>
+
+            {/* Platform-Branded Tab Content */}
+            {tabs.map(tab => {
+              const branding = getPlatformBranding(tab.label);
+              return (
+                <TabsContent key={tab.key} value={tab.key} className="mt-0">
+                  <Card 
+                    className="overflow-hidden"
+                    style={{
+                      borderColor: branding.primary + '40'
+                    }}
+                  >
+                    <CardHeader 
+                      className="border-b py-4 sm:py-5"
+                      style={{
+                        background: `linear-gradient(135deg, ${branding.secondary} 0%, ${branding.secondary}80 100%)`
+                      }}
+                    >
+                      <div className="px-4 sm:px-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm"
+                              style={{ backgroundColor: branding.primary + '20' }}
+                            >
+                              {getPlatformIcon(tab.label, 'md')}
+                            </div>
+                            <div>
+                              <CardTitle 
+                                className="text-xl flex items-center gap-2"
+                                style={{ color: branding.primary }}
+                              >
+                                {branding.name} Content
+                              </CardTitle>
+                              <CardDescription className="text-sm">
+                                Optimized for {branding.name.toLowerCase()} audience and format
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant="secondary" 
+                            className="text-xs w-fit px-3 py-1"
+                            style={{ 
+                              backgroundColor: branding.primary + '20',
+                              color: branding.accent
+                            }}
+                          >
+                            Ready to publish
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {/* Content Display Area */}
+                      <div className="p-4 sm:p-6 space-y-5">
+                         <div 
+                           className="relative overflow-hidden rounded-lg border min-h-[200px]"
+                           style={{
+                             backgroundColor: branding.secondary + '40',
+                             borderColor: branding.primary + '30'
+                           }}
+                         >
+                           {/* Decorative Header Accent */}
+                           <div 
+                             className="absolute top-0 left-0 right-0 h-1"
+                             style={{ backgroundColor: branding.primary }}
+                           />
+                           
+                           {/* Content Container */}
+                           <div className="p-5 sm:p-6">
+                             {/* Loading State for Podcast/Blog Generation */}
+                             {((tab.label === 'Podcast Script' && podcastLoading) || 
+                               (tab.label === 'Blog Post' && blogLoading)) ? (
+                               <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                                 <Loader2 
+                                   className="w-8 h-8 animate-spin" 
+                                   style={{ color: branding.primary }} 
+                                 />
+                                 <div className="text-center space-y-2">
+                                   <p className="font-medium" style={{ color: branding.primary }}>
+                                     Generating {tab.label === 'Podcast Script' ? 'Podcast' : 'Blog'} Content...
+                                   </p>
+                                   <p className="text-sm text-muted-foreground">
+                                     AI is creating optimized content for {branding.name}
+                                   </p>
+                                 </div>
+                               </div>
+                             ) : (
+                               <div 
+                                 className="prose prose-sm max-w-none leading-relaxed whitespace-pre-wrap"
+                                 style={{ 
+                                   color: 'hsl(var(--foreground))',
+                                   '--tw-prose-headings': branding.primary,
+                                   '--tw-prose-bold': branding.accent,
+                                   '--tw-prose-links': branding.primary
+                                 } as React.CSSProperties}
+                                 dangerouslySetInnerHTML={{ __html: markdownToHtml(getDisplayForKey(tab.key)) }}
+                               />
+                             )}
+                          </div>
+                           
+                           {/* Content Stats Footer */}
+                           {!((tab.label === 'Podcast Script' && podcastLoading) || 
+                               (tab.label === 'Blog Post' && blogLoading)) && (
+                             <div 
+                               className="px-5 sm:px-6 py-3 border-t bg-background/50"
+                               style={{ borderColor: branding.primary + '20' }}
+                             >
+                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                                 <div className="flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
+                                   <span>{getDisplayForKey(tab.key).split(' ').length} words</span>
+                                   <span>{getDisplayForKey(tab.key).length} characters</span>
+                            </div>
+                                 <div className="flex items-center gap-1">
+                                   <CheckCircle2 className="w-3 h-3" style={{ color: branding.primary }} />
+                                   <span style={{ color: branding.primary }} className="font-medium text-xs">
+                                     Optimized for {branding.name}
+                                   </span>
+                            </div>
+                          </div>
+                        </div>
+                           )}
+                        </div>
+                      </div>
+                        
+                        {/* Action Buttons */}
+                        {!((tab.label === 'Podcast Script' && podcastLoading) || 
+                            (tab.label === 'Blog Post' && blogLoading)) && (
+                          <div className="flex flex-wrap gap-3 pt-2">
+                            <Button
+                              onClick={() => copyToClipboard(getDisplayForKey(tab.key), tab.key)}
+                              size="sm"
+                              className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                              style={{
+                                backgroundColor: branding.primary,
+                                color: 'white'
+                              }}
+                            >
+                            {copiedStates[tab.key] ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
                               <span>Copied!</span>
                             </>
                           ) : (
                             <>
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                              </svg>
+                                <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
                               <span>Copy Content</span>
                             </>
                           )}
-                        </button>
-
-                        <button
-                          onClick={() => downloadContent(getDisplayForKey(active.key), active.label)}
-                          className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 hover:shadow-lg transition-all duration-300 transform hover:scale-105 font-semibold flex items-center space-x-2"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <span>Download</span>
-                        </button>
-                      </div>
-
-                      {refinedByPlatform[active.key] && !refinedSaved[active.key] && (
-                        <div className="md:ml-auto">
-                          <button
-                            onClick={async () => {
-                              const key = active.key;
-                              const refined = refinedByPlatform[key]?.text;
-                              if (!refined) return;
-                              setIsSaving(prev => ({ ...prev, [key]: true }));
-                              try {
-                                const urlParts = window.location.pathname.split('/');
-                                const docId = urlParts[urlParts.indexOf('docs') + 1];
-                                const platform = platformSlugForKey(key);
-                                
-                                // Handle Twitter thread specially
-                                const tab = tabs.find(t => t.key === key);
-                                const isTwitterThread = tab?.label.toLowerCase().includes('thread');
-                                
-                                if (isTwitterThread && platform === 'twitter') {
-                                  // For Twitter threads, save both twitter field and twitterThread array
-                                  const threadArray = refined.split('\n\n').filter(tweet => tweet.trim());
-                                  await DocumentService.updateGeneratedPlatformWithThread(docId, refined, threadArray);
-                                } else {
-                                  await DocumentService.updateGeneratedPlatform(docId, platform, refined);
-                                }
-                                setRefinedSaved(prev => ({ ...prev, [key]: true }));
-                              } catch (e) {
-                                console.error(e);
-                                alert('Failed to save new content. Please try again.');
-                              } finally {
-                                setIsSaving(prev => ({ ...prev, [key]: false }));
-                              }
+                          </Button>
+                          
+                          <Button
+                            onClick={() => openEditModal(tab.key)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                            style={{
+                              borderColor: branding.primary + '50',
+                              color: branding.primary
                             }}
-                            disabled={isSaving[active.key]}
-                            className={`px-4 py-2 rounded-md text-sm font-semibold ${isSaving[active.key] ? 'bg-emerald-300 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`}
                           >
-                            {isSaving[active.key] ? 'Saving…' : 'Save new content'}
-                          </button>
-                        </div>
-                      )}
+                            <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span>Edit</span>
+                          </Button>
+                          
+                          <Button
+                            onClick={() => openRefinementModal(tab.key)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                            style={{
+                              borderColor: branding.primary + '50',
+                              color: branding.primary
+                            }}
+                          >
+                            <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span>Refine with AI</span>
+                          </Button>
                     </div>
+                        )}
 
-                    {/* Inline error */}
-                    {errorByPlatform[active.key] && (
-                      <div className="mt-4 text-red-600 text-sm">{errorByPlatform[active.key]}</div>
-                    )}
-                  </>
-                )}
-              </div>
+                        {/* Status Messages */}
+                        {refinedSaved[tab.key] && (
+                          <Alert className="border-green-200 bg-green-50 mx-0">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            <AlertDescription className="text-green-800 text-sm">
+                              Refinement saved successfully!
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        
+                        {errorByPlatform[tab.key] && (
+                          <Alert variant="destructive" className="mx-0">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription className="text-sm">
+                              {errorByPlatform[tab.key]}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        {/* Podcast/Blog Generation Errors */}
+                        {tab.label === 'Podcast Script' && podcastError && (
+                          <Alert variant="destructive" className="mx-0">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription className="text-sm">
+                              Failed to generate podcast content: {podcastError}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        {tab.label === 'Blog Post' && blogError && (
+                          <Alert variant="destructive" className="mx-0">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription className="text-sm">
+                              Failed to generate blog content: {blogError}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              );
+            })}
+          </Tabs>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Comment Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg mx-4">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h4 className="text-lg font-semibold">Add comment for {tabs.find(t => t.key === modalPlatformKey)?.label}</h4>
-            </div>
-            <div className="p-5">
-              <label className="block text-sm text-gray-600 mb-2">Tell us how to refine (e.g., &quot;summarize to 2 lines&quot;, &quot;more concise&quot;, &quot;bullet points&quot;)</label>
-              <textarea
-                value={modalComment}
-                onChange={(e) => setModalComment(e.target.value)}
-                placeholder="Your instruction..."
-                rows={5}
-                maxLength={500}
-                className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="px-5 pb-5 flex items-center justify-end gap-3">
-              <button
-                onClick={closeCommentModal}
-                className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitRefinement}
-                disabled={isRefining[modalPlatformKey] || !modalComment.trim()}
-                className={`px-4 py-2 rounded-md text-white ${isRefining[modalPlatformKey] ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-60`}
-              >
-                {isRefining[modalPlatformKey] ? 'Generating…' : 'Generate'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Content Modal */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4">
-            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h4 className="text-lg font-semibold">Edit {tabs.find(t => t.key === editPlatformKey)?.label} content</h4>
-              <button onClick={() => setIsEditOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
-            </div>
-            <div className="p-5">
-              {editError && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{editError}</div>}
-              <textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                rows={14}
-                className="w-full border border-gray-300 rounded-md p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="px-5 pb-5 flex items-center justify-end gap-3">
-              <button
-                onClick={() => setIsEditOpen(false)}
-                className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    setIsEditSaving(true);
-                    setEditError('');
-                    const key = editPlatformKey;
-                    const platform = platformSlugForKey(key);
-                    const urlParts = window.location.pathname.split('/');
-                    const docId = urlParts[urlParts.indexOf('docs') + 1];
-                    
-                    // Handle Twitter thread editing specially
-                    const tab = tabs.find(t => t.key === key);
-                    const isTwitterThread = tab?.label.toLowerCase().includes('thread');
-                    
-                    if (isTwitterThread && platform === 'twitter') {
-                      // For Twitter threads, save only to twitterThread field
-                      const threadArray = editText.trim().split('\n\n').filter(tweet => tweet.trim());
-                      await DocumentService.updateGeneratedPlatformWithThread(docId, editText.trim(), threadArray);
-                    } else {
-                      await DocumentService.updateGeneratedPlatform(docId, platform, editText.trim());
-                    }
-                    setEditedByPlatform(prev => ({ ...prev, [key]: editText.trim() }));
-                    setIsEditOpen(false);
-                  } catch (e) {
-                    setEditError(e instanceof Error ? e.message : 'Failed to save');
-                  } finally {
-                    setIsEditSaving(false);
-                  }
-                }}
-                disabled={isEditSaving || !editText.trim()}
-                className={`px-4 py-2 rounded-md text-white ${isEditSaving ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-60`}
-              >
-                {isEditSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      <div className="flex justify-center mt-8 mb-12">
-        <button
-          onClick={onBackToDashboard}
-          className="px-10 py-4 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold text-lg flex items-center space-x-3"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Back to Dashboard</span>
-        </button>
       </div>
     </div>
   );

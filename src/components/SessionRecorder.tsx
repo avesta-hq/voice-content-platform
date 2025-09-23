@@ -4,6 +4,28 @@ import React, { useState, useRef, useEffect } from 'react';
 import { SpeechRecognitionManager } from '@/lib/speechRecognition';
 import { RecordingState } from '@/types';
 import { getLanguageByCode } from '@/lib/languages';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Mic, 
+  MicOff, 
+  Square, 
+  Play, 
+  Save, 
+  X, 
+  Clock, 
+  Languages, 
+  FileText, 
+  AlertTriangle,
+  CheckCircle2,
+  Volume2
+} from 'lucide-react';
 
 interface SessionRecorderProps {
   inputLanguage: string;
@@ -134,169 +156,223 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
 
   if (!isSupported) {
     return (
-      <div className="text-center p-6 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-600">
-          Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.
-        </p>
+      <div className="max-w-2xl mx-auto p-4">
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="text-base">
+            Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari for the best experience.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Record New Session</h2>
-        <p className="text-gray-600 mt-2">
-          Add more content to your document in {selectedLanguage?.nativeName || selectedLanguage?.name}
-        </p>
-      </div>
-
-      {/* Language Display */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="text-center">
-          <h3 className="font-semibold text-blue-800 mb-2">🌍 Document Language Settings</h3>
-          <div className="text-blue-700">
-            <span className="text-lg font-medium">
-              {selectedLanguage?.nativeName} ({selectedLanguage?.name})
-            </span>
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-3">
+          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Mic className="h-8 w-8 text-primary" />
           </div>
-          <p className="text-sm text-blue-600 mt-1">
-            Language settings are fixed for this document
+          <h1 className="text-3xl font-bold tracking-tight">Record New Session</h1>
+          <p className="text-muted-foreground text-lg">
+            Add more content to your document in {selectedLanguage?.nativeName || selectedLanguage?.name}
           </p>
         </div>
-      </div>
-      
-      {/* Recording Controls */}
-      <div className="flex justify-center space-x-4 mb-6">
-        {!recordingState.isRecording ? (
-          <button
-            onClick={startRecording}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Start Recording
-          </button>
-        ) : (
-          <>
-            {/* Pause feature commented out for now
-            {recordingState.isPaused ? (
-              <button
-                onClick={resumeRecording}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Resume
-              </button>
-            ) : (
-              <button
-                onClick={pauseRecording}
-                className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
-              >
-                Pause
-              </button>
-            )}
-            */}
-            <button
-              onClick={stopRecording}
-              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Stop
-            </button>
-          </>
-        )}
-      </div>
 
-      {/* Recording Status */}
-      {recordingState.isRecording && (
-        <div className="text-center mb-6">
-          <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full ${
-            // recordingState.isPaused 
-            //   ? 'bg-yellow-100 text-yellow-800' 
-            //   : 'bg-red-100 text-red-800'
-            'bg-red-100 text-red-800'
-          }`}>
-            <div className={`w-3 h-3 rounded-full ${
-              // recordingState.isPaused 
-              //   ? 'bg-yellow-500' 
-              //   : 'bg-red-500 animate-pulse'
-              'bg-red-500 animate-pulse'
-            }`}></div>
-            <span className="font-medium">
-              {/* {recordingState.isPaused ? 'Paused - Your input is preserved' : 'Recording'} - {formatTime(recordingState.duration)} */}
-              Recording - {formatTime(recordingState.duration)}
-            </span>
-          </div>
-          
-          {/* Pause State Message - commented out
-          {recordingState.isPaused && (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-700 text-sm">
-                💡 <strong>Paused:</strong> Your speech input is safely preserved. Click &quot;Resume&quot; to continue recording from where you left off.
-              </p>
+        {/* Language Display Card */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="flex items-center justify-center gap-2 text-primary">
+              <Languages className="h-5 w-5" />
+              Document Language Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Badge variant="secondary" className="text-lg px-4 py-2 mb-2">
+              {selectedLanguage?.nativeName} ({selectedLanguage?.name})
+            </Badge>
+            <CardDescription>
+              Language settings are configured for this document
+            </CardDescription>
+          </CardContent>
+        </Card>
+        
+        {/* Recording Controls Card */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center space-y-6">
+              {/* Recording Button */}
+              <div className="flex justify-center">
+                {!recordingState.isRecording ? (
+                  <Button
+                    onClick={startRecording}
+                    size="lg"
+                    className="h-16 w-16 rounded-full bg-primary hover:bg-primary/90 shadow-lg"
+                  >
+                    <Mic className="h-8 w-8" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={stopRecording}
+                    size="lg"
+                    variant="destructive"
+                    className="h-16 w-16 rounded-full shadow-lg"
+                  >
+                    <Square className="h-8 w-8" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Recording Status */}
+              {recordingState.isRecording && (
+                <div className="text-center space-y-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-3 h-3 bg-destructive rounded-full animate-pulse"></div>
+                    <Badge variant="destructive" className="text-base px-3 py-1">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Recording - {formatTime(recordingState.duration)}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Speak clearly into your microphone
+                  </p>
+                </div>
+              )}
+              
+              {/* Instructions */}
+              {!recordingState.isRecording && (
+                <div className="text-center space-y-2">
+                  <p className="text-muted-foreground">
+                    Click the microphone to start recording
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Make sure your microphone is enabled
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-          */}
-        </div>
-      )}
+          </CardContent>
+        </Card>
 
-      {/* Transcript Display */}
-      {recordingState.transcript && (
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-700 mb-3">Session Content:</h3>
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[120px]">
-            <p className="text-gray-800 whitespace-pre-wrap">
-              {recordingState.transcript}
-            </p>
-          </div>
-        </div>
-      )}
+        {/* Transcript Display */}
+        {recordingState.transcript && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Volume2 className="h-5 w-5 text-primary" />
+                Session Content
+              </CardTitle>
+              <CardDescription>
+                Real-time transcription of your speech
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-muted/30 rounded-lg min-h-[120px] border border-border/50">
+                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                  {recordingState.transcript}
+                </p>
+              </div>
+              {recordingState.transcript.length > 0 && (
+                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  <span>{recordingState.transcript.split(' ').length} words captured</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Session Notes */}
-      <div className="mb-6">
-        <label htmlFor="sessionNotes" className="block text-sm font-medium text-gray-700 mb-2">
-          Session Notes (Optional)
-        </label>
-        <textarea
-          id="sessionNotes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Add any notes about this session (optional)..."
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Optional: Add context or notes about this recording session
-        </p>
-      </div>
+        {/* Session Notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Session Notes
+            </CardTitle>
+            <CardDescription>
+              Add optional context or notes about this recording session
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="sessionNotes">Notes (Optional)</Label>
+              <Textarea
+                id="sessionNotes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Add any notes about this session (optional)..."
+                className="resize-none"
+              />
+            </div>
+            {notes.trim() && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <span>{notes.trim().length} characters added</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Action Buttons */}
-      {recordingState.transcript && !recordingState.isRecording && (
-        <div className="flex space-x-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveSession}
-            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
-          >
-            Save Session
-          </button>
-        </div>
-      )}
+        {/* Action Buttons */}
+        {recordingState.transcript && !recordingState.isRecording && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  onClick={onCancel}
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel Session
+                </Button>
+                <Button
+                  onClick={handleSaveSession}
+                  size="lg"
+                  className="flex-1"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Session
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Instructions */}
-      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-800 mb-2">Instructions:</h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Click &quot;Start Recording&quot; to begin your session</li>
-          {/* Pause feature commented out
-          <li>• Use &quot;Pause&quot; to take breaks while thinking - your input is preserved</li>
-          */}
-          <li>• Click &quot;Stop&quot; when you&apos;re finished with this session</li>
-          <li>• Add optional notes to provide context for this session</li>
-          <li>• Click &quot;Save Session&quot; to add this content to your document</li>
-        </ul>
+        {/* Instructions */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="text-primary">How to Record</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span>Click the microphone button to begin your recording session</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span>Speak clearly and naturally - your speech will be transcribed in real-time</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span>Click the stop button when you're finished with this session</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span>Add optional notes to provide context for your recording</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                <span>Save your session to add this content to your document</span>
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

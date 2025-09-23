@@ -4,6 +4,29 @@ import React, { useEffect, useRef, useState } from 'react';
 import { VoiceSession } from '@/types';
 import { SpeechRecognitionManager } from '@/lib/speechRecognition';
 import { getLanguageByCode } from '@/lib/languages';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Mic, 
+  MicOff, 
+  Play, 
+  Square, 
+  Clock, 
+  FileText, 
+  Volume2, 
+  AlertTriangle, 
+  Save, 
+  X, 
+  Trash2,
+  Edit3,
+  Loader2
+} from 'lucide-react';
 
 interface SessionEditModalProps {
   open: boolean;
@@ -22,6 +45,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
   const [newTranscript, setNewTranscript] = useState('');
   const [title, setTitle] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const cumulative = useRef<string>('');
 
@@ -100,6 +124,9 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
 
   const handleSave = async () => {
     try {
+      setIsSaving(true);
+      setError(''); // Clear any previous errors
+      
       const appended = newTranscript.trim();
       if (!appended) {
         // Allow title-only edits for outline sessions
@@ -143,116 +170,272 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
     } catch (e) {
       console.error(e);
       setError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h4 className="text-lg font-semibold">Edit Session {session.sessionNumber}</h4>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
-        </div>
+    <Dialog open={open} onOpenChange={isSaving ? undefined : onClose}>
+      <DialogContent className="max-w-7xl w-[98vw] sm:w-[95vw] md:w-[92vw] lg:w-[88vw] xl:w-[85vw] max-h-[95vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Edit3 className="h-5 w-5 text-primary" />
+            Edit Session {session.sessionNumber}
+          </DialogTitle>
+          <DialogDescription>
+            Add more voice input to this session or edit the title and content.
+          </DialogDescription>
+        </DialogHeader>
+
         {!isSupported ? (
-          <div className="p-5">
-            <p className="text-red-600">Speech recognition is not supported in this browser.</p>
-          </div>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Speech recognition is not supported in this browser.
+            </AlertDescription>
+          </Alert>
         ) : (
-          <div className="p-5 space-y-4">
-            {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
+          <div className="space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             {session.origin === 'outline' && (
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="Enter session title"
-                />
-              </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4" />
+                    Session Title
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="session-title">Title</Label>
+                    <Input
+                      id="session-title"
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Enter session title"
+                      disabled={isSaving}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
-            {session.transcript && session.transcript.trim().length > 0 && (
-              <div>
-                <div className="text-sm text-gray-600 mb-1">Current content</div>
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded">
-                  <p className="whitespace-pre-wrap text-gray-800 text-sm">{session.transcript}</p>
-                </div>
-              </div>
-            )}
-
-            {session.notes && session.notes.trim().length > 0 && (
-              <div>
-                <div className="text-xs text-gray-500 mt-3 mb-1">Notes</div>
-                {(() => {
-                  const raw = session.notes!.trim();
-                  const hasSeparator = raw.includes('\n\n');
-                  const [descPart, bulletsPart] = hasSeparator ? raw.split('\n\n', 2) : [raw, ''];
-                  const description = (descPart || '').trim();
-                  const bullets = (bulletsPart || '')
-                    .split('\n')
-                    .map((s) => s.trim())
-                    .filter(Boolean);
-                  return (
-                    <div>
-                      {description && (
-                        <p className="text-xs text-gray-500 italic font-serif whitespace-pre-wrap">{description}</p>
-                      )}
-                      {bullets.length > 0 && (
-                        <ul className="list-disc pl-5 mt-1 text-xs text-gray-500 italic font-serif">
-                          {bullets.map((b, i) => (
-                            <li key={i}>{b}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-gray-600">New input (live)</div>
-                <div className="text-xs text-gray-500">{isRecording ? 'Recording ' : 'Idle '}• {formatTime(recordedDuration)}</div>
-              </div>
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded min-h-[80px]">
-                <p className="whitespace-pre-wrap text-blue-900 text-sm">{newTranscript || 'Start speaking to add more...'}</p>
-              </div>
-              <div className="mt-3 flex gap-3">
-                {!isRecording ? (
-                  <button onClick={startRecording} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Start</button>
-                ) : (
-                  <button onClick={stopRecording} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Stop</button>
+            {/* Current Content and Notes - Full width utilization */}
+            {(session.transcript && session.transcript.trim().length > 0) || (session.notes && session.notes.trim().length > 0) ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {session.transcript && session.transcript.trim().length > 0 && (
+                  <Card className={`${session.notes && session.notes.trim().length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Volume2 className="h-4 w-4" />
+                        Current Content
+                      </CardTitle>
+                      <CardDescription>
+                        Existing voice transcript for this session
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-5 bg-muted/30 rounded-lg border max-h-64 overflow-y-auto">
+                        <p className="whitespace-pre-wrap text-foreground text-sm leading-relaxed">
+                          {session.transcript}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
-                <button onClick={() => { setNewTranscript(''); cumulative.current=''; setRecordedDuration(0); }} className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50">Clear</button>
-              </div>
-            </div>
 
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Preview to save</div>
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded min-h-[80px]">
-                <p className="whitespace-pre-wrap text-gray-800 text-sm">{(session.transcript + (newTranscript ? (session.transcript.endsWith(' ') || session.transcript.length===0 ? '' : ' ') + newTranscript : ''))}</p>
+                {session.notes && session.notes.trim().length > 0 && (
+                  <Card className="lg:col-span-1">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <FileText className="h-4 w-4" />
+                        Session Notes
+                      </CardTitle>
+                      <CardDescription>
+                        Additional context and outline points
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="p-4 bg-accent/20 rounded-lg border border-accent/30 max-h-64 overflow-y-auto">
+                        {(() => {
+                          const raw = session.notes!.trim();
+                          const hasSeparator = raw.includes('\n\n');
+                          const [descPart, bulletsPart] = hasSeparator ? raw.split('\n\n', 2) : [raw, ''];
+                          const description = (descPart || '').trim();
+                          const bullets = (bulletsPart || '')
+                            .split('\n')
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          return (
+                            <div className="space-y-3">
+                              {description && (
+                                <p className="text-sm text-muted-foreground italic whitespace-pre-wrap leading-relaxed">
+                                  {description}
+                                </p>
+                              )}
+                              {bullets.length > 0 && (
+                                <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground italic">
+                                  {bullets.map((b, i) => (
+                                    <li key={i}>{b}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
-            </div>
+            ) : null}
 
-            <div className="pt-2 flex justify-end gap-3">
-              <button onClick={onClose} className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50">Cancel</button>
-              <button
-                onClick={handleSave}
-                disabled={!((session.origin === 'outline' && title.trim() !== (session.title || '')) || newTranscript.trim().length > 0)}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Mic className="h-4 w-4" />
+                    Live Voice Input
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={isRecording ? "destructive" : "secondary"} className="text-xs">
+                      {isRecording ? (
+                        <>
+                          <div className="w-2 h-2 bg-current rounded-full animate-pulse mr-1"></div>
+                          Recording
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="h-3 w-3 mr-1" />
+                          Idle
+                        </>
+                      )}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {formatTime(recordedDuration)}
+                    </Badge>
+                  </div>
+                </div>
+                <CardDescription>
+                  Add more content to this session using voice input
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-6 bg-primary/5 border border-primary/20 rounded-lg min-h-[120px]">
+                  <p className="whitespace-pre-wrap text-foreground text-sm leading-relaxed">
+                    {newTranscript || (
+                      <span className="text-muted-foreground italic">
+                        Start speaking to add more content...
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  {!isRecording ? (
+                    <Button 
+                      onClick={startRecording} 
+                      className="flex items-center gap-2"
+                      disabled={isSaving}
+                    >
+                      <Mic className="h-4 w-4" />
+                      Start Recording
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={stopRecording} 
+                      variant="destructive" 
+                      className="flex items-center gap-2"
+                      disabled={isSaving}
+                    >
+                      <Square className="h-4 w-4" />
+                      Stop Recording
+                    </Button>
+                  )}
+                  <Button 
+                    onClick={() => { setNewTranscript(''); cumulative.current=''; setRecordedDuration(0); }} 
+                    variant="outline"
+                    className="flex items-center gap-2"
+                    disabled={isSaving}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Clear
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Preview Final Content - Full width */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Play className="h-4 w-4" />
+                  Preview Final Content
+                </CardTitle>
+                <CardDescription>
+                  This is how your session will look after saving
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="p-6 bg-secondary/30 rounded-lg border border-secondary/40 min-h-[140px] max-h-72 overflow-y-auto">
+                  <p className="whitespace-pre-wrap text-foreground text-sm leading-relaxed">
+                    {(session.transcript + (newTranscript ? (session.transcript.endsWith(' ') || session.transcript.length===0 ? '' : ' ') + newTranscript : ''))}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
         )}
-      </div>
-    </div>
+
+        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-3 pt-6 border-t">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline" className="text-xs">
+              Session #{session.sessionNumber}
+            </Badge>
+            {session.origin && (
+              <Badge variant="secondary" className="text-xs">
+                {session.origin === 'outline' ? 'From Outline' : 'Voice Recording'}
+              </Badge>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button 
+              onClick={onClose} 
+              variant="outline" 
+              className="flex items-center gap-2"
+              disabled={isSaving}
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || !((session.origin === 'outline' && title.trim() !== (session.title || '')) || newTranscript.trim().length > 0)}
+              className="flex items-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
