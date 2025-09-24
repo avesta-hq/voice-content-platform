@@ -7,16 +7,16 @@ import { UserService } from '@/lib/userService';
 import { getLanguageByCode } from '@/lib/languages';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
-import { LoadingState, DocumentGridSkeleton, LoadingDocuments } from '@/components/ui/loading-state';
-import { Plus, Search, FileText, Mic, Clock, Languages, MoreVertical, Trash2, Edit, Eye, Calendar, Filter, Loader2 } from 'lucide-react';
+import { DocumentGridSkeleton } from '@/components/ui/loading-state';
+import { Plus, Search, FileText, Mic, Trash2, Edit, Eye, Calendar } from 'lucide-react';
+import { PageTransition, StaggeredContainer, StaggeredItem } from '@/components/animations/page-transitions';
+import { HoverScale, SlideInView } from '@/components/animations/interactive-elements';
 
 interface DocumentDashboardProps {
   onCreateNew: () => void;
@@ -25,6 +25,7 @@ interface DocumentDashboardProps {
   onViewContent?: (documentId: string) => void;
   reloadToken?: number;
 }
+
 
 export default function DocumentDashboard({ onCreateNew, onEditDocument, onGenerateContent, onViewContent, reloadToken }: DocumentDashboardProps) {
   const [documents, setDocuments] = useState<UserDocument[]>([]);
@@ -39,17 +40,14 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   const loadDocuments = useCallback(async (forceReload = false) => {
     // Prevent multiple API calls unless forced
     if (hasLoadedRef.current && !forceReload) {
-      console.log('🚫 Documents already loaded, skipping API call');
       return;
     }
     
     try {
-      console.log(`🔄 Loading ${activeTab} documents...`); // Debug log
       if (!forceReload) hasLoadedRef.current = true;
       setIsLoading(true);
       const currentUser = UserService.getCurrentUser();
       if (currentUser) {
-        console.log('👤 Current user:', currentUser.id); // Debug log
         let userDocs: UserDocument[];
         
         if (activeTab === 'completed') {
@@ -58,7 +56,6 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
           userDocs = await DocumentService.getDraftDocuments(currentUser.id);
         }
         
-        console.log(`📚 ${activeTab} documents loaded:`, userDocs.length); // Debug log
         setDocuments(userDocs);
       }
     } catch (err) {
@@ -180,22 +177,27 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+    <PageTransition>
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/20 p-4 sm:p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
         
         {/* Modern Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Documents</h1>
-            <p className="text-muted-foreground">
-              Create, edit, and manage your voice content documents
-            </p>
-        </div>
-          <Button onClick={onCreateNew} size="lg" className="sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Create New Document
-          </Button>
-        </div>
+        <SlideInView direction="up">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Documents</h1>
+              <p className="text-muted-foreground">
+                Create, edit, and manage your voice content documents
+              </p>
+            </div>
+            <HoverScale scale={1.05}>
+              <Button onClick={onCreateNew} size="lg" className="sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Document
+              </Button>
+            </HoverScale>
+          </div>
+        </SlideInView>
 
         {/* Modern Tabs with Search */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'draft' | 'completed')} className="space-y-4 sm:space-y-6">
@@ -258,19 +260,36 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-          {filteredDocuments.map((document) => {
-            const inputLang = getLanguageByCode(document.inputLanguage);
-            const outputLang = getLanguageByCode(document.outputLanguage);
-            
-            return (
-                    <Card key={document.id} className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer">
+              <StaggeredContainer className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {filteredDocuments.map((document) => {
+                  const inputLang = getLanguageByCode(document.inputLanguage);
+                  const outputLang = getLanguageByCode(document.outputLanguage);
+                  
+                  return (
+                    <StaggeredItem key={document.id}>
+                      <HoverScale scale={1.02}>
+                        <Card className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer h-full">
                       <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">
-                        {document.title}
-                            </CardTitle>
+                        <div className="flex items-start justify-between overflow-hidden">
+                          <div className="flex-1 min-w-0 pr-2 overflow-hidden">
+                            <h3 
+                              className="font-semibold group-hover:text-primary transition-colors" 
+                              title={document.title}
+                              style={{
+                                fontSize: '1.125rem',
+                                lineHeight: '1.2',
+                                height: '1.5rem',
+                                minHeight: '1.5rem',
+                                maxHeight: '1.5rem',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                width: '100%',
+                                display: 'block'
+                              }}
+                            >
+                              {document.title}
+                            </h3>
                             <CardDescription className="mt-1 flex items-center gap-2">
                               <Calendar className="h-3 w-3" />
                               {formatDate(document.createdAt || new Date().toISOString())}
@@ -413,11 +432,13 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                         </div>
                       </CardContent>
                     </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
+                  </HoverScale>
+                </StaggeredItem>
+              );
+            })}
+          </StaggeredContainer>
+        )}
+      </TabsContent>
 
           {/* Completed Tab Content */}
           <TabsContent value="completed" className="space-y-6">
@@ -438,19 +459,36 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              <StaggeredContainer className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                 {filteredDocuments.map((document) => {
                   const inputLang = getLanguageByCode(document.inputLanguage);
                   const outputLang = getLanguageByCode(document.outputLanguage);
 
                   return (
-                    <Card key={document.id} className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer">
+                    <StaggeredItem key={document.id}>
+                      <HoverScale scale={1.02}>
+                        <Card className="group hover:shadow-lg transition-all duration-200 border-border/50 hover:border-primary/20 cursor-pointer h-full">
                       <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg font-semibold line-clamp-2 group-hover:text-primary transition-colors">
+                        <div className="flex items-start justify-between overflow-hidden">
+                          <div className="flex-1 min-w-0 pr-2 overflow-hidden">
+                            <h3 
+                              className="font-semibold group-hover:text-primary transition-colors" 
+                              title={document.title}
+                              style={{
+                                fontSize: '1.125rem',
+                                lineHeight: '1.2',
+                                height: '1.5rem',
+                                minHeight: '1.5rem',
+                                maxHeight: '1.5rem',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                width: '100%',
+                                display: 'block'
+                              }}
+                            >
                               {document.title}
-                            </CardTitle>
+                            </h3>
                             <CardDescription className="mt-1 flex items-center gap-2">
                               <Calendar className="h-3 w-3" />
                               {formatDate(document.createdAt || new Date().toISOString())}
@@ -579,23 +617,26 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               className="mx-1 pointer-events-none"
                             />
                             <span className="text-xs text-muted-foreground whitespace-nowrap">Done</span>
-                </div>
-              </div>
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
-            );
-          })}
-        </div>
-      )}
-          </TabsContent>
+                  </HoverScale>
+                </StaggeredItem>
+              );
+            })}
+          </StaggeredContainer>
+        )}
+      </TabsContent>
         </Tabs>
-          </div>
 
-      {/* Loading Overlay */}
-      <LoadingOverlay 
-        isVisible={isStatusChanging} 
-        message={overlayMessage}
-      />
-    </div>
+        {/* Loading Overlay */}
+        <LoadingOverlay 
+          isVisible={isStatusChanging} 
+          message={overlayMessage}
+        />
+        </div>
+      </div>
+    </PageTransition>
   );
 }

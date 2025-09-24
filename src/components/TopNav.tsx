@@ -5,9 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, FileText, MessageSquare, LogOut, User } from "lucide-react";
+import { Menu, FileText, MessageSquare, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserService } from "@/lib/userService";
+import { ThemeToggleEnhanced } from "@/components/theme-toggle";
 
 export default function TopNav() {
   const pathname = usePathname();
@@ -62,15 +63,18 @@ export default function TopNav() {
         {navigationItems.map((item) => (
           <NavItem key={item.href} href={item.href} label={item.label} icon={item.icon} />
         ))}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLogout}
-          className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-        >
-          <LogOut className="h-4 w-4" />
-          <span className="hidden lg:inline">Logout</span>
-        </Button>
+        <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border/50">
+          <ThemeToggleEnhanced />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="hidden lg:inline">Logout</span>
+          </Button>
+        </div>
       </nav>
 
       {/* Mobile Navigation */}
@@ -105,6 +109,10 @@ export default function TopNav() {
               </nav>
             </div>
             <div className="px-6 py-4 border-t bg-muted/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-foreground">Theme</span>
+                <ThemeToggleEnhanced />
+              </div>
               <Button
                 variant="ghost"
                 size="sm"

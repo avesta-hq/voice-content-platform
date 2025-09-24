@@ -2,16 +2,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformContent } from '@/types';
-import { DocumentService } from '@/lib/documentService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -21,7 +16,6 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { 
-  Pencil, 
   Copy, 
   CheckCircle2, 
   Home, 
@@ -29,19 +23,16 @@ import {
   ChevronUp,
   Mic,
   Sparkles,
-  RefreshCw,
-  Save,
   AlertTriangle,
-  Eye,
-  Edit3,
-  Zap,
   FileText,
   MessageSquare,
   Twitter,
   Linkedin,
   Rss,
+  Loader2,
   Play,
-  Loader2
+  Edit3,
+  Zap
 } from 'lucide-react';
 
 interface ContentDisplayProps {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Link from "next/link";
 import TopNav from "@/components/TopNav";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
   title: "Voice Content Platform",
@@ -15,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -25,16 +26,23 @@ export default function RootLayout({
         />
       </head>
       <body className={`antialiased`}>
-        <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <Link href="/" className="text-foreground font-semibold hover:text-primary transition-colors text-sm sm:text-base">
-              <span className="hidden sm:inline">Voice Content Platform</span>
-              <span className="sm:hidden">VCP</span>
-            </Link>
-            <TopNav />
-          </div>
-        </header>
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+              <Link href="/" className="text-foreground font-semibold hover:text-primary transition-colors text-sm sm:text-base">
+                <span className="hidden sm:inline">Voice Content Platform</span>
+                <span className="sm:hidden">VCP</span>
+              </Link>
+              <TopNav />
+            </div>
+          </header>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

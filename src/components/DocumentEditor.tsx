@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { DocumentWithSessions, GeneratedOutline, VoiceSession } from '@/types';
+import { DocumentWithSessions, GeneratedOutline } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { getLanguageByCode } from '@/lib/languages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { LoadingState, DocumentEditorSkeleton } from '@/components/ui/loading-state';
+import { DocumentEditorSkeleton } from '@/components/ui/loading-state';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -19,24 +18,19 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { 
-  ArrowLeft,
   Plus,
   Mic,
   FileText,
   Eye,
   Zap,
-  Clock,
-  Languages,
-  User,
-  Calendar,
-  BarChart3,
   Pencil,
   Trash2,
   AlertTriangle,
   CheckCircle2,
   Loader2,
   Sparkles,
-  Home
+  Home,
+  ArrowLeft
 } from 'lucide-react';
 
 interface DocumentEditorProps {
@@ -55,6 +49,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const hasLoadedRef = useRef<string | null>(null);
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   // Outline generation state
   const [isOutlineModalOpen, setIsOutlineModalOpen] = useState(false);
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
@@ -116,6 +111,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
     if (!confirm) return;
 
     try {
+      setDeletingSessionId(sessionId);
       const res = await fetch(`/api/voiceSessions/${sessionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`Failed to delete session: ${res.status}`);
 
@@ -138,8 +134,9 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
       setHasChangesAfterGeneration(true);
       showToast('success', 'Session deleted successfully');
     } catch (e) {
-      console.error(e);
       showToast('error', e instanceof Error ? e.message : 'Failed to delete session');
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
@@ -534,10 +531,15 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                             variant="ghost"
                             size="sm"
                             onClick={() => handleSessionDelete(session.id)}
+                            disabled={deletingSessionId === session.id}
                             className="text-destructive hover:text-destructive"
                             title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {deletingSessionId === session.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -581,10 +583,15 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                             variant="ghost"
                             size="sm"
                             onClick={() => handleSessionDelete(session.id)}
+                            disabled={deletingSessionId === session.id}
                             className="text-destructive hover:text-destructive"
                             title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {deletingSessionId === session.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
