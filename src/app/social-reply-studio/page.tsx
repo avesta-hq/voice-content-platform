@@ -149,39 +149,39 @@ export default function SocialReplyStudioPage() {
       </div>
 
       <div className="relative z-10 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto space-y-12">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Enhanced Header */}
-          <div className="text-center space-y-8 py-12">
+          <div className="text-center space-y-6 py-8">
             <div className="relative">
-              <div className="w-32 h-32 bg-gradient-to-br from-primary via-orange-500 to-amber-500 rounded-3xl mx-auto flex items-center justify-center shadow-2xl shadow-primary/25 transform hover:scale-105 transition-all duration-300">
-                <div className="w-28 h-28 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <MessageSquare className="w-14 h-14 text-white drop-shadow-lg" />
+              <div className="w-24 h-24 bg-gradient-to-br from-primary via-orange-500 to-amber-500 rounded-2xl mx-auto flex items-center justify-center shadow-2xl shadow-primary/25 transform hover:scale-105 transition-all duration-300">
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                  <MessageSquare className="w-10 h-10 text-white drop-shadow-lg" />
                 </div>
               </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                <Sparkles className="w-3 h-3 text-white" />
               </div>
             </div>
-            <div className="space-y-4">
-              <h1 className="text-5xl sm:text-6xl font-bold bg-gradient-to-r from-gray-900 via-primary to-orange-600 bg-clip-text text-transparent dark:from-white dark:via-primary dark:to-orange-400">
+            <div className="space-y-3">
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 via-primary to-orange-600 bg-clip-text text-transparent dark:from-white dark:via-primary dark:to-orange-400">
                 Social Reply Studio
               </h1>
-              <p className="text-xl sm:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                 Transform your thoughts into engaging social media responses with 
                 <span className="text-primary font-semibold"> AI-powered voice technology</span>
               </p>
-              <div className="flex flex-wrap justify-center gap-4 mt-6">
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
-                  <Mic className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Voice Input</span>
+              <div className="flex flex-wrap justify-center gap-3 mt-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
+                  <Mic className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-medium">Voice Input</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">AI Generated</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-medium">AI Generated</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-white/60 dark:bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
-                  <Languages className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium">Multi-Language</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-white/10 backdrop-blur-sm rounded-full border border-white/20 shadow-lg">
+                  <Languages className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-medium">Multi-Language</span>
                 </div>
               </div>
             </div>
@@ -200,12 +200,12 @@ export default function SocialReplyStudioPage() {
             <CardHeader className="pb-6 bg-gradient-to-r from-primary/5 via-orange-50/50 to-amber-50/50 dark:from-primary/10 dark:via-orange-900/20 dark:to-amber-900/20 rounded-t-lg border-b border-white/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <Settings className="h-6 w-6 text-white" />
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Settings className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-2xl font-bold text-foreground">Configuration</CardTitle>
-                    <CardDescription className="text-base">
+                    <CardTitle className="text-xl font-bold text-foreground">Configuration</CardTitle>
+                    <CardDescription className="text-sm">
                       Set up your platform, languages, and input preferences
                     </CardDescription>
                   </div>
@@ -216,19 +216,19 @@ export default function SocialReplyStudioPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-8 space-y-8">
+            <CardContent className="p-6 space-y-6">
               {/* Enhanced Platform and Language Settings */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Platform Selection */}
                 <div className="space-y-4">
-                  <Label className="flex items-center gap-3 text-base font-semibold">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-orange-200/50 flex items-center justify-center">
-                      <PlatformIcon className="h-4 w-4" style={{ color: branding.primary }} />
+                  <Label className="flex items-center gap-2 text-sm font-semibold">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary/20 to-orange-200/50 flex items-center justify-center">
+                      <PlatformIcon className="h-3 w-3" style={{ color: branding.primary }} />
                     </div>
                     Target Platform
                   </Label>
                   <Select value={platform} onValueChange={(value: 'linkedin' | 'twitter') => setPlatform(value)}>
-                    <SelectTrigger className="h-14 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl transition-all duration-200 w-full">
+                    <SelectTrigger className="h-12 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl transition-all duration-200 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl">
@@ -258,14 +258,14 @@ export default function SocialReplyStudioPage() {
 
                 {/* Voice Input Language */}
                 <div className="space-y-4">
-                  <Label className="flex items-center gap-3 text-base font-semibold">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-900/50 dark:to-emerald-900/50 flex items-center justify-center">
-                      <Mic className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Label className="flex items-center gap-2 text-sm font-semibold">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-green-100 to-emerald-200 dark:from-green-900/50 dark:to-emerald-900/50 flex items-center justify-center">
+                      <Mic className="h-3 w-3 text-green-600 dark:text-green-400" />
                     </div>
                     Voice Input Language
                   </Label>
                   <Select value={inputLang} onValueChange={setInputLang}>
-                    <SelectTrigger className="h-14 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl transition-all duration-200 w-full">
+                    <SelectTrigger className="h-12 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl transition-all duration-200 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl max-h-60 overflow-y-auto">
@@ -283,14 +283,14 @@ export default function SocialReplyStudioPage() {
 
                 {/* Output Language */}
                 <div className="space-y-4">
-                  <Label className="flex items-center gap-3 text-base font-semibold">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-violet-200 dark:from-purple-900/50 dark:to-violet-900/50 flex items-center justify-center">
-                      <Languages className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <Label className="flex items-center gap-2 text-sm font-semibold">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-100 to-violet-200 dark:from-purple-900/50 dark:to-violet-900/50 flex items-center justify-center">
+                      <Languages className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                     </div>
                     Output Language
                   </Label>
                   <Select value={outputLang} onValueChange={setOutputLang}>
-                    <SelectTrigger className="h-14 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl transition-all duration-200 w-full">
+                    <SelectTrigger className="h-12 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl transition-all duration-200 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl max-h-60 overflow-y-auto">
@@ -312,9 +312,9 @@ export default function SocialReplyStudioPage() {
               {/* Enhanced Original Post Input */}
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-3 text-lg font-semibold">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${branding.primary}20, ${branding.primary}40)` }}>
-                      <PlatformIcon className="h-5 w-5" style={{ color: branding.primary }} />
+                  <Label className="flex items-center gap-2 text-base font-semibold">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg" style={{ background: `linear-gradient(135deg, ${branding.primary}20, ${branding.primary}40)` }}>
+                      <PlatformIcon className="h-4 w-4" style={{ color: branding.primary }} />
                     </div>
                     Original {branding.name} Post
                     <Badge variant="destructive" className="text-xs animate-pulse">Required</Badge>
