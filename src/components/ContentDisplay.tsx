@@ -729,7 +729,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                            />
                            
                            {/* Content Container */}
-                           <div className="p-5 sm:p-6">
+                           <div className="p-4 sm:p-5 md:p-6">
                              {/* Loading State for Podcast/Blog Generation */}
                              {((tab.label === 'Podcast Script' && podcastLoading) || 
                                (tab.label === 'Blog Post' && blogLoading)) ? (
@@ -788,11 +788,11 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                         {/* Action Buttons */}
                         {!((tab.label === 'Podcast Script' && podcastLoading) || 
                             (tab.label === 'Blog Post' && blogLoading)) && (
-                          <div className="flex flex-wrap gap-3 pt-2">
+                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 px-3 sm:px-0 sm:ml-2 md:ml-4">
                             <Button
                               onClick={() => copyToClipboard(getDisplayForKey(tab.key), tab.key)}
                               size="sm"
-                              className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                              className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[130px] font-medium"
                               style={{
                                 backgroundColor: branding.primary,
                                 color: 'white'
@@ -800,43 +800,43 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                             >
                             {copiedStates[tab.key] ? (
                               <>
-                                <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Copied!</span>
+                                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                <span className="truncate">Copied!</span>
                             </>
                           ) : (
                             <>
-                                <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Copy Content</span>
+                                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                <span className="truncate">Copy Content</span>
                             </>
                           )}
                           </Button>
                           
                           <Button
-                            onClick={() => openEditModal(tab.key)}
+                            onClick={() => openCommentModal(tab.key)}
                             variant="outline"
                             size="sm"
-                            className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                            className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[100px] font-medium"
                             style={{
                               borderColor: branding.primary + '50',
                               color: branding.primary
                             }}
                           >
-                            <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>Edit</span>
+                            <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="truncate">Edit</span>
                           </Button>
                           
                           <Button
-                            onClick={() => openRefinementModal(tab.key)}
+                            onClick={() => openCommentModal(tab.key)}
                             variant="outline"
                             size="sm"
-                            className="flex items-center gap-2 text-xs sm:text-sm px-3 sm:px-4 py-2"
+                            className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[130px] font-medium"
                             style={{
                               borderColor: branding.primary + '50',
                               color: branding.primary
                             }}
                           >
-                            <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>Refine with AI</span>
+                            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="truncate">Refine with AI</span>
                           </Button>
                     </div>
                         )}
