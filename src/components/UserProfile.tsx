@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, UserPreferences } from '@/types';
 import { UserService } from '@/lib/userService';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Loader2 } from 'lucide-react';
 
 interface UserProfileProps {
   user: User;
@@ -20,6 +21,14 @@ export default function UserProfile({ user, onLogout }: UserProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [preferences, setPreferences] = useState<UserPreferences>(user.preferences);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Reset loading state if user is no longer authenticated (after logout completes)
+  useEffect(() => {
+    if (isLoggingOut && !UserService.isAuthenticated()) {
+      setIsLoggingOut(false);
+    }
+  }, [isLoggingOut]);
 
   const handleSavePreferences = async () => {
     setIsSaving(true);
@@ -38,6 +47,21 @@ export default function UserProfile({ user, onLogout }: UserProfileProps) {
     setIsEditing(false);
   };
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    
+    try {
+      // Add a small delay to show the loading state
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      onLogout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Reset loading state on error
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
@@ -47,11 +71,19 @@ export default function UserProfile({ user, onLogout }: UserProfileProps) {
             <CardDescription>Manage your account information and preferences</CardDescription>
           </div>
           <Button 
-            onClick={onLogout}
+            onClick={handleLogout}
             variant="destructive"
             size="sm"
+            disabled={isLoggingOut}
           >
-            Logout
+            {isLoggingOut ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Logging out...
+              </>
+            ) : (
+              'Logout'
+            )}
           </Button>
         </div>
       </CardHeader>

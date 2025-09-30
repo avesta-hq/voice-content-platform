@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { DocumentGridSkeleton } from '@/components/ui/loading-state';
-import { Plus, Search, FileText, Mic, Trash2, Edit, Eye, Calendar } from 'lucide-react';
+import { Plus, Search, FileText, Mic, Trash2, Edit, Eye, Calendar, Loader2 } from 'lucide-react';
 import { PageTransition, StaggeredContainer, StaggeredItem } from '@/components/animations/page-transitions';
 import { HoverScale, SlideInView } from '@/components/animations/interactive-elements';
 
@@ -36,6 +36,25 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   const hasLoadedRef = useRef(false);
   const [isStatusChanging, setIsStatusChanging] = useState<boolean>(false);
   const [overlayMessage, setOverlayMessage] = useState<string>('Applying status change…');
+  
+  // Navigation loading states
+  const [navigatingTo, setNavigatingTo] = useState<{ [key: string]: 'edit' | 'generate' | 'view' | null }>({});
+
+  // Navigation handlers with immediate feedback
+  const handleEditDocument = (documentId: string) => {
+    setNavigatingTo(prev => ({ ...prev, [documentId]: 'edit' }));
+    onEditDocument(documentId);
+  };
+
+  const handleGenerateContent = (documentId: string) => {
+    setNavigatingTo(prev => ({ ...prev, [documentId]: 'generate' }));
+    onGenerateContent(documentId);
+  };
+
+  const handleViewContent = (documentId: string) => {
+    setNavigatingTo(prev => ({ ...prev, [documentId]: 'view' }));
+    onViewContent && onViewContent(documentId);
+  };
 
   const loadDocuments = useCallback(async (forceReload = false) => {
     // Prevent multiple API calls unless forced
@@ -381,20 +400,50 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                         {/* Action Buttons */}
                         <div className="space-y-3">
                           <div className="flex gap-2">
-                            <Button onClick={() => onEditDocument(document.id)} variant="default" size="sm" className="flex-1 h-8 text-xs">
-                              <Edit className="mr-1 h-3 w-3" />
-                              Edit
+                            <Button 
+                              onClick={() => handleEditDocument(document.id)} 
+                              variant="default" 
+                              size="sm" 
+                              className="flex-1 h-8 text-xs"
+                              disabled={navigatingTo[document.id] === 'edit'}
+                            >
+                              {navigatingTo[document.id] === 'edit' ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Edit className="mr-1 h-3 w-3" />
+                              )}
+                              {navigatingTo[document.id] === 'edit' ? 'Opening...' : 'Edit'}
                             </Button>
                             {((document.totalSessions ?? (Array.isArray(document.sessions) ? document.sessions.length : 0)) > 0) && (
-                              <Button onClick={() => onGenerateContent(document.id)} variant="secondary" size="sm" className="flex-1 h-8 text-xs">
-                                <Mic className="mr-1 h-3 w-3" />
-                                Generate
+                              <Button 
+                                onClick={() => handleGenerateContent(document.id)} 
+                                variant="secondary" 
+                                size="sm" 
+                                className="flex-1 h-8 text-xs"
+                                disabled={navigatingTo[document.id] === 'generate'}
+                              >
+                                {navigatingTo[document.id] === 'generate' ? (
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Mic className="mr-1 h-3 w-3" />
+                                )}
+                                {navigatingTo[document.id] === 'generate' ? 'Loading...' : 'Generate'}
                               </Button>
                             )}
                             {document.hasGeneratedContent && document.generatedContent && (
-                              <Button onClick={() => onViewContent && onViewContent(document.id)} variant="outline" size="sm" className="flex-1 h-8 text-xs">
-                                <Eye className="mr-1 h-3 w-3" />
-                                View
+                              <Button 
+                                onClick={() => handleViewContent(document.id)} 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1 h-8 text-xs"
+                                disabled={navigatingTo[document.id] === 'view'}
+                              >
+                                {navigatingTo[document.id] === 'view' ? (
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Eye className="mr-1 h-3 w-3" />
+                                )}
+                                {navigatingTo[document.id] === 'view' ? 'Loading...' : 'View'}
                               </Button>
                           )}
                         </div>

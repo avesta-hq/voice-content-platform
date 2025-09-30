@@ -57,6 +57,21 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
   const [outline, setOutline] = useState<GeneratedOutline | null>(null);
   const [replaceOldOutlineSessions] = useState<boolean>(false);
+  
+  // Navigation loading states
+  const [isNavigatingToGenerate, setIsNavigatingToGenerate] = useState(false);
+  const [isNavigatingToView, setIsNavigatingToView] = useState(false);
+
+  // Navigation handlers with immediate feedback
+  const handleGenerateContent = () => {
+    setIsNavigatingToGenerate(true);
+    onGenerateContent(documentId);
+  };
+
+  const handleViewContent = () => {
+    setIsNavigatingToView(true);
+    onViewContent && onViewContent(documentId);
+  };
 
   // Auto-scroll to session recorder when it becomes visible on mobile
   useEffect(() => {
@@ -391,22 +406,32 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
             {/* Actions: always allow Generate if sessions exist; View when content exists */}
             {document.sessions.length > 0 && (
               <Button
-                onClick={() => onGenerateContent(documentId)}
+                onClick={handleGenerateContent}
                 className="flex items-center gap-2"
                 title="Generate content (overwrites saved content if present)"
+                disabled={isNavigatingToGenerate}
               >
-                <Zap className="h-4 w-4" />
-                Generate Content
+                {isNavigatingToGenerate ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4" />
+                )}
+                {isNavigatingToGenerate ? 'Loading...' : 'Generate Content'}
               </Button>
             )}
             {document.hasGeneratedContent && document.generatedContent && (
               <Button
-                onClick={() => onViewContent && onViewContent(documentId)}
+                onClick={handleViewContent}
                 variant="outline"
                 className="flex items-center gap-2"
+                disabled={isNavigatingToView}
               >
-                <Eye className="h-4 w-4" />
-                View Content
+                {isNavigatingToView ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                {isNavigatingToView ? 'Loading...' : 'View Content'}
               </Button>
             )}
           </div>
