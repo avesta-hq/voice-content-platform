@@ -125,6 +125,7 @@ export default function ViewContentPage() {
             originalText={originalText}
             generatedContent={content}
             onBackToDashboard={() => router.push("/docs")}
+            documentId={docId}
           />
         )}
       </div>

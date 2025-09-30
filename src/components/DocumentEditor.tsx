@@ -50,11 +50,66 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const hasLoadedRef = useRef<string | null>(null);
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const sessionsRef = useRef<HTMLDivElement>(null);
+  const sessionRecorderRef = useRef<HTMLDivElement>(null);
   // Outline generation state
   const [isOutlineModalOpen, setIsOutlineModalOpen] = useState(false);
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
   const [outline, setOutline] = useState<GeneratedOutline | null>(null);
   const [replaceOldOutlineSessions] = useState<boolean>(false);
+
+  // Auto-scroll to session recorder when it becomes visible on mobile
+  useEffect(() => {
+    if (showSessionRecorder) {
+      scrollToSessionRecorder();
+    }
+  }, [showSessionRecorder]);
+
+  // Function to scroll to session recorder on mobile devices when Add Session is clicked
+  const scrollToSessionRecorder = () => {
+    // Only scroll on mobile devices (screen width < 640px)
+    const isMobile = window.innerWidth < 640;
+    console.log('ScrollToSessionRecorder called:', { isMobile, hasRef: !!sessionRecorderRef.current, windowWidth: window.innerWidth });
+    
+    if (isMobile && sessionRecorderRef.current) {
+      // Use a delay to ensure the session recorder is rendered
+      setTimeout(() => {
+        if (sessionRecorderRef.current) {
+          console.log('Scrolling to session recorder section using ref');
+          const elementTop = sessionRecorderRef.current.getBoundingClientRect().top + window.pageYOffset;
+          const offsetPosition = elementTop - 80; // Add 80px offset for mobile menu bar
+          
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 300); // Delay to ensure SessionRecorder is fully rendered
+    }
+  };
+
+  // Function to scroll to sessions list on mobile devices after adding new session
+  const scrollToSessions = () => {
+    // Only scroll on mobile devices (screen width < 640px)
+    const isMobile = window.innerWidth < 640;
+    console.log('ScrollToSessions called:', { isMobile, hasRef: !!sessionsRef.current, windowWidth: window.innerWidth });
+    
+    if (isMobile && sessionsRef.current) {
+      // Use a delay to ensure the new session is rendered
+      setTimeout(() => {
+        if (sessionsRef.current) {
+          console.log('Scrolling to sessions section using ref');
+          const elementTop = sessionsRef.current.getBoundingClientRect().top + window.pageYOffset;
+          const offsetPosition = elementTop - 80; // Add 80px offset for mobile menu bar
+          
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 300); // Delay to ensure DOM is updated with new session
+    }
+  };
 
   const generateOutlineNow = async () => {
     try {
@@ -176,6 +231,9 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
       
       setShowSessionRecorder(false);
       showToast('success', 'Session saved');
+      
+      // Auto-scroll to sessions on mobile after adding new session
+      scrollToSessions();
     } catch (err) {
       setError('Failed to save session');
       console.error('Save session error:', err);
@@ -394,7 +452,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
 
       {/* Session Recorder */}
       {showSessionRecorder && (
-        <div className="mb-8">
+        <div ref={sessionRecorderRef} className="mb-8">
           <SessionRecorder
             inputLanguage={document.inputLanguage}
             onSessionComplete={handleSessionComplete}
@@ -455,7 +513,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
       )}
 
       {/* Session History */}
-      <Card>
+      <Card ref={sessionsRef}>
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2">
             <Mic className="h-5 w-5" />

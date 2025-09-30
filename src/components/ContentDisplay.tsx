@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { PlatformContent } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,13 +33,18 @@ import {
   Loader2,
   Play,
   Edit3,
-  Zap
+  Zap,
+  X
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface ContentDisplayProps {
   originalText: string;
   generatedContent: PlatformContent[];
   onBackToDashboard: () => void;
+  documentId?: string;
 }
 
 // Minimal, safe markdown -> HTML for bold/italic plus line breaks
@@ -74,7 +80,17 @@ function markdownToHtml(markdown: string): string {
   return html;
 }
 
-export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard }: ContentDisplayProps) {
+export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard, documentId }: ContentDisplayProps) {
+  const params = useParams();
+  const docId = documentId || (params?.id as string);
+  
+  // Client-side only state to prevent hydration issues
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
   // State to track which buttons have been clicked
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>({});
   // Accordion state for Original Voice Input (default collapsed)
@@ -120,15 +136,11 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const [activeTab, setActiveTab] = useState<string>(tabs[0]?.key || '');
 
-  // Sync active tab if content changes
-  useEffect(() => {
-    if (tabs.length && !tabs.find(t => t.key === activeTab)) {
-      setActiveTab(tabs[0].key);
-    }
-  }, [tabs, activeTab]);
+  // State for dynamic content (needed before useMemo)
+  const [podcastContent, setPodcastContent] = useState<string>('');
+  const [blogContent, setBlogContent] = useState<string>('');
 
-  const active = tabs.find(t => t.key === activeTab) || tabs[0];
-
+  // Define helper functions first before using them in useMemo
   const getOriginalForKey = (key: string) => {
     const tab = tabs.find(t => t.key === key);
     if (!tab) return '';
@@ -146,10 +158,32 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
   };
   
   const getDisplayForKey = (key: string) => {
-    if (editedByPlatform[key]) return editedByPlatform[key];
-    if (refinedByPlatform[key]?.text) return refinedByPlatform[key].text;
+    if (editedByPlatform[key]) {
+      return editedByPlatform[key];
+    }
+    if (refinedByPlatform[key]?.text) {
+      return refinedByPlatform[key].text;
+    }
     return getOriginalForKey(key);
   };
+
+  // Memoize the display content to ensure proper re-rendering when refined content changes
+  const displayContent = useMemo(() => {
+    const content: { [key: string]: string } = {};
+    tabs.forEach(tab => {
+      content[tab.key] = getDisplayForKey(tab.key);
+    });
+    return content;
+  }, [tabs, editedByPlatform, refinedByPlatform, podcastContent, blogContent]);
+
+  // Sync active tab if content changes
+  useEffect(() => {
+    if (tabs.length && !tabs.find(t => t.key === activeTab)) {
+      setActiveTab(tabs[0].key);
+    }
+  }, [tabs, activeTab]);
+
+  const active = tabs.find(t => t.key === activeTab) || tabs[0];
 
   // Thread support for Twitter: check if thread exists in initial generatedContent
   const twitterThread: string[] | undefined = useMemo(() => {
@@ -168,6 +202,9 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
 
   const copyToClipboard = async (text: string, platformKey: string) => {
     try {
+      // Only run clipboard operations on client side
+      if (typeof window === 'undefined') return;
+      
       const hasClipboard = typeof navigator !== 'undefined' && !!navigator.clipboard;
       const hasWrite = hasClipboard && typeof (navigator.clipboard as Clipboard).write === 'function';
       const hasClipboardItem = typeof window !== 'undefined' && 'ClipboardItem' in window;
@@ -285,14 +322,12 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
   // Lazy podcast generation state
   const [podcastLoading, setPodcastLoading] = useState<boolean>(false);
   const [podcastError, setPodcastError] = useState<string>('');
-  const [podcastContent, setPodcastContent] = useState<string>('');
   const podcastRequestedRef = React.useRef<boolean>(false);
   const lastPodcastDocIdRef = React.useRef<string | null>(null);
 
   // Lazy blog generation state
   const [blogLoading, setBlogLoading] = useState<boolean>(false);
   const [blogError, setBlogError] = useState<string>('');
-  const [blogContent, setBlogContent] = useState<string>('');
   const blogRequestedRef = React.useRef<boolean>(false);
   const lastBlogDocIdRef = React.useRef<string | null>(null);
   const hasPodcast = useMemo(() => {
@@ -313,9 +348,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         setPodcastLoading(true);
         setPodcastError('');
         podcastRequestedRef.current = true;
-        // Derive docId from URL
-        const parts = window.location.pathname.split('/');
-        const docId = parts[parts.indexOf('docs') + 1];
+        // Use the documentId from props/params
         if (lastPodcastDocIdRef.current === docId) {
           // Already requested for this document in this session
           setPodcastLoading(false);
@@ -352,8 +385,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         setBlogLoading(true);
         setBlogError('');
         blogRequestedRef.current = true;
-        const parts = window.location.pathname.split('/');
-        const docId = parts[parts.indexOf('docs') + 1];
+        // Use the documentId from props/params
         if (lastBlogDocIdRef.current === docId) {
           setBlogLoading(false);
           return;
@@ -386,10 +418,159 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
     setIsModalOpen(true);
   };
 
+  const openEditModal = (platformKey: string) => {
+    setEditPlatformKey(platformKey);
+    // Get current content for editing
+    const currentContent = editedByPlatform[platformKey] || getDisplayForKey(platformKey);
+    setEditText(currentContent);
+    setIsEditOpen(true);
+  };
+
+  const openRefinementModal = (platformKey: string) => {
+    openCommentModal(platformKey);
+  };
+
   const closeCommentModal = () => {
     setIsModalOpen(false);
     setModalPlatformKey('');
     setModalComment('');
+  };
+
+  const closeEditModal = () => {
+    setIsEditOpen(false);
+    setEditPlatformKey('');
+    setEditText('');
+    setEditError('');
+  };
+
+  const saveEditedContent = async () => {
+    if (!editPlatformKey || !editText.trim() || !docId) return;
+    
+    setIsEditSaving(true);
+    setEditError('');
+    
+    try {
+      // Map platform key to the expected field names in the database
+      const platformFieldMap: { [key: string]: string } = {
+        'blog': 'blog',
+        'linkedin': 'linkedin', 
+        'twitter': 'twitter',
+        'twitter-thread': 'twitterThread',
+        'podcast': 'podcast'
+      };
+      
+      const fieldName = platformFieldMap[editPlatformKey] || editPlatformKey;
+      
+      // Prepare the update payload for the server
+      let updatePayload: any = {
+        generatedContent: {},
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Handle Twitter Thread specially - it should be stored as an array
+      if (fieldName === 'twitterThread') {
+        const threadParts = editText.trim().split('\n\n').filter(part => part.trim());
+        updatePayload.generatedContent[fieldName] = threadParts;
+      } else {
+        updatePayload.generatedContent[fieldName] = editText.trim();
+      }
+      
+      // Save the edited content to the server
+      const response = await fetch(`/api/userDocuments/${docId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Failed to save content: ${response.status}`);
+      }
+      
+      // Update local state for immediate UI consistency
+      setEditedByPlatform(prev => ({
+        ...prev,
+        [editPlatformKey]: editText.trim()
+      }));
+      
+      closeEditModal();
+    } catch (error) {
+      console.error('Error saving edited content:', error);
+      setEditError(error instanceof Error ? error.message : 'Failed to save changes');
+    } finally {
+      setIsEditSaving(false);
+    }
+  };
+
+  const saveRefinedContent = async (platformKey: string) => {
+    if (!refinedByPlatform[platformKey] || !docId) return;
+    
+    setIsSaving(prev => ({ ...prev, [platformKey]: true }));
+    setErrorByPlatform(prev => ({ ...prev, [platformKey]: null }));
+    
+    try {
+      const refinedContent = refinedByPlatform[platformKey];
+      
+      // Map platform key to the expected field names in the database
+      const platformFieldMap: { [key: string]: string } = {
+        'blog': 'blog',
+        'linkedin': 'linkedin', 
+        'twitter': 'twitter',
+        'twitter-thread': 'twitterThread', // Twitter thread updates the twitterThread field
+        'podcast': 'podcast'
+      };
+      
+      const fieldName = platformFieldMap[platformKey] || platformKey;
+      
+      // Prepare the update payload for the server
+      let updatePayload: any = {
+        generatedContent: {},
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Handle Twitter Thread specially - it should be stored as an array
+      if (fieldName === 'twitterThread') {
+        // Split the refined content by double newlines to recreate the thread array
+        const threadParts = refinedContent.text.split('\n\n').filter(part => part.trim());
+        updatePayload.generatedContent[fieldName] = threadParts;
+      } else {
+        updatePayload.generatedContent[fieldName] = refinedContent.text;
+      }
+      
+      // Save the refined content to the server
+      const response = await fetch(`/api/userDocuments/${docId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Failed to save content: ${response.status}`);
+      }
+      
+      // Mark as saved locally
+      setRefinedSaved(prev => ({ ...prev, [platformKey]: true }));
+      
+      // Also update the local edited content for immediate UI consistency
+      setEditedByPlatform(prev => ({
+        ...prev,
+        [platformKey]: refinedContent.text
+      }));
+      
+    } catch (error) {
+      console.error('Error saving refined content:', error);
+      setErrorByPlatform(prev => ({ 
+        ...prev, 
+        [platformKey]: error instanceof Error ? error.message : 'Failed to save refined content'
+      }));
+    } finally {
+      setIsSaving(prev => ({ ...prev, [platformKey]: false }));
+    }
   };
 
   const submitRefinement = async () => {
@@ -407,9 +588,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         : tab.label.toLowerCase().includes('twitter') ? 'twitter'
         : 'podcast';
 
-      // Need documentId: embed via dataset on body or window? We'll fetch from URL
-      const urlParts = window.location.pathname.split('/');
-      const docId = urlParts[urlParts.indexOf('docs') + 1];
+      // Use the documentId from props/params
 
       // Determine the current visible content for this tab
       const currentVisible = tab.label.toLowerCase().includes('thread') && twitterThread && twitterThread.length > 0
@@ -434,11 +613,14 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         ...prev,
         [key]: { text: refinedText, comment: modalComment.trim() }
       }));
+      
       // Clear comment box to avoid stacking multiple commands
       setModalComment('');
       // Reset the saved state so user can save the new refinement
       setRefinedSaved(prev => ({ ...prev, [key]: false }));
-      setIsModalOpen(false);
+      
+      // Close modal after successful refinement
+      closeCommentModal();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
       setErrorByPlatform(prev => ({ ...prev, [modalPlatformKey]: msg }));
@@ -749,6 +931,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                                </div>
                              ) : (
                                <div 
+                                 key={`${tab.key}-${refinedByPlatform[tab.key]?.text ? 'refined' : 'original'}-${editedByPlatform[tab.key] ? 'edited' : 'default'}`}
                                  className="prose prose-sm max-w-none leading-relaxed whitespace-pre-wrap"
                                  style={{ 
                                    color: 'hsl(var(--foreground))',
@@ -756,7 +939,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                                    '--tw-prose-bold': branding.accent,
                                    '--tw-prose-links': branding.primary
                                  } as React.CSSProperties}
-                                 dangerouslySetInnerHTML={{ __html: markdownToHtml(getDisplayForKey(tab.key)) }}
+                                 dangerouslySetInnerHTML={{ __html: markdownToHtml(displayContent[tab.key] || getDisplayForKey(tab.key)) }}
                                />
                              )}
                           </div>
@@ -770,8 +953,8 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                              >
                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
                                  <div className="flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
-                                   <span>{getDisplayForKey(tab.key).split(' ').length} words</span>
-                                   <span>{getDisplayForKey(tab.key).length} characters</span>
+                                   <span>{(displayContent[tab.key] || getDisplayForKey(tab.key)).split(' ').length} words</span>
+                                   <span>{(displayContent[tab.key] || getDisplayForKey(tab.key)).length} characters</span>
                             </div>
                                  <div className="flex items-center gap-1">
                                    <CheckCircle2 className="w-3 h-3" style={{ color: branding.primary }} />
@@ -790,7 +973,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                             (tab.label === 'Blog Post' && blogLoading)) && (
                           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4 px-3 sm:px-0 sm:ml-2 md:ml-4">
                             <Button
-                              onClick={() => copyToClipboard(getDisplayForKey(tab.key), tab.key)}
+                              onClick={() => copyToClipboard(displayContent[tab.key] || getDisplayForKey(tab.key), tab.key)}
                               size="sm"
                               className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[130px] font-medium"
                               style={{
@@ -812,13 +995,20 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                           </Button>
                           
                           <Button
-                            onClick={() => openCommentModal(tab.key)}
+                            onClick={() => openEditModal(tab.key)}
                             variant="outline"
                             size="sm"
-                            className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[100px] font-medium"
+                            className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[100px] font-medium transition-all duration-200 hover:shadow-md"
                             style={{
                               borderColor: branding.primary + '50',
-                              color: branding.primary
+                              color: branding.primary,
+                              backgroundColor: 'transparent'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = branding.primary + '10';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
                             }}
                           >
                             <Edit3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -826,18 +1016,52 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
                           </Button>
                           
                           <Button
-                            onClick={() => openCommentModal(tab.key)}
+                            onClick={() => openRefinementModal(tab.key)}
                             variant="outline"
                             size="sm"
-                            className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[130px] font-medium"
+                            className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[130px] font-medium transition-all duration-200 hover:shadow-md"
                             style={{
                               borderColor: branding.primary + '50',
-                              color: branding.primary
+                              color: branding.primary,
+                              backgroundColor: 'transparent'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = branding.primary + '10';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
                             }}
                           >
                             <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                             <span className="truncate">Refine with AI</span>
                           </Button>
+
+                          {/* Save New Content Button - Show when there's refined content that hasn't been saved */}
+                          {refinedByPlatform[tab.key] && !refinedSaved[tab.key] && (
+                            <Button
+                              onClick={() => saveRefinedContent(tab.key)}
+                              disabled={isSaving[tab.key]}
+                              size="sm"
+                              className="flex items-center justify-center gap-2 text-xs sm:text-sm px-2 sm:px-4 py-2.5 h-10 w-auto sm:flex-none sm:min-w-[140px] font-medium transition-all duration-200"
+                              style={{
+                                backgroundColor: branding.accent || '#10B981',
+                                color: 'white'
+                              }}
+                            >
+                              {isSaving[tab.key] ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 animate-spin" />
+                                  <span className="truncate">Saving...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span className="truncate">Save New Content</span>
+                                </>
+                              )}
+                            </Button>
+                          )}
+
                     </div>
                         )}
 
@@ -884,6 +1108,110 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
           </Tabs>
             </div>
       </div>
+
+      {/* Edit Modal */}
+      <Dialog open={isEditOpen} onOpenChange={closeEditModal}>
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] sm:h-[80vh] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Edit3 className="h-4 w-4 sm:h-5 sm:w-5" />
+              Edit Content
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 flex-1">
+            <div className="space-y-2">
+              <Label htmlFor="edit-content" className="text-sm font-medium">Content</Label>
+              <Textarea
+                id="edit-content"
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="min-h-[200px] sm:min-h-[300px] resize-none text-sm sm:text-base"
+                placeholder="Edit your content here..."
+              />
+            </div>
+            {editError && (
+              <Alert variant="destructive" className="text-sm">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{editError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={closeEditModal} 
+                disabled={isEditSaving}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveEditedContent} 
+                disabled={isEditSaving || !editText.trim()}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
+                {isEditSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refinement Modal */}
+      <Dialog open={isModalOpen} onOpenChange={closeCommentModal}>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[80vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
+              Refine with AI
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="refinement-comment" className="text-sm font-medium">
+                How would you like to refine this content?
+              </Label>
+              <Textarea
+                id="refinement-comment"
+                value={modalComment}
+                onChange={(e) => setModalComment(e.target.value)}
+                className="min-h-[80px] sm:min-h-[100px] resize-none text-sm sm:text-base"
+                placeholder="E.g., 'Make it more professional', 'Add more technical details', 'Shorten it'..."
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t">
+              <Button 
+                variant="outline" 
+                onClick={closeCommentModal} 
+                disabled={isRefining[modalPlatformKey]}
+                className="w-full sm:w-auto order-2 sm:order-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={submitRefinement} 
+                disabled={isRefining[modalPlatformKey] || !modalComment.trim()}
+                className="w-full sm:w-auto order-1 sm:order-2"
+              >
+                {isRefining[modalPlatformKey] ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Refining...
+                  </>
+                ) : (
+                  'Refine Content'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
