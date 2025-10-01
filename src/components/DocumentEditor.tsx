@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DocumentEditorSkeleton } from '@/components/ui/loading-state';
+import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -61,6 +62,8 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   // Navigation loading states
   const [isNavigatingToGenerate, setIsNavigatingToGenerate] = useState(false);
   const [isNavigatingToView, setIsNavigatingToView] = useState(false);
+  const [isStatusChanging, setIsStatusChanging] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Processing...');
 
   // Navigation handlers with immediate feedback
   const handleGenerateContent = () => {
@@ -340,15 +343,15 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Toast */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50">
-          <Alert className={`shadow-lg ${toast.type === 'success' ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}`}>
-            <div className="flex items-center gap-2">
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full sm:w-auto">
+          <Alert className={`shadow-lg border-2 ${toast.type === 'success' ? 'border-green-200 bg-green-50' : 'border-destructive bg-destructive/10'}`}>
+            <div className="flex items-start gap-2">
               {toast.type === 'success' ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
               ) : (
-                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
               )}
-              <AlertDescription className={toast.type === 'success' ? 'text-green-800' : 'text-destructive'}>
+              <AlertDescription className={`${toast.type === 'success' ? 'text-green-800' : 'text-destructive'} text-sm leading-relaxed break-words`}>
                 {toast.message}
               </AlertDescription>
             </div>
@@ -830,7 +833,13 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                                     <p class="text-gray-700 text-sm">This will delete sessions 2..N and recreate them from the outline. Your first session will be kept.</p>
                                     <div class="flex justify-end gap-3">
                                       <button id="ovr-cancel" class="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800">Cancel</button>
-                                      <button id="ovr-confirm" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white">Overwrite and save</button>
+                                      <button id="ovr-confirm" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white flex items-center gap-2">
+                                        <svg id="ovr-spinner" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                          <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span id="ovr-text">Overwrite and save</span>
+                                      </button>
                                     </div>
                                   </div>
                                 </div>`;
@@ -839,10 +848,28 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                               modal.querySelector('#ovr-close')?.addEventListener('click', close);
                               modal.querySelector('#ovr-cancel')?.addEventListener('click', close);
                               const confirmBtn = modal.querySelector('#ovr-confirm');
-                              if (confirmBtn) {
+                              const spinner = modal.querySelector('#ovr-spinner');
+                              const buttonText = modal.querySelector('#ovr-text');
+                              const cancelBtn = modal.querySelector('#ovr-cancel');
+                              const closeBtn = modal.querySelector('#ovr-close');
+                              
+                              if (confirmBtn && spinner && buttonText && cancelBtn && closeBtn) {
                                 confirmBtn.addEventListener('click', async () => {
                                   try {
+                                    // Show loading state in modal button
+                                    spinner.classList.remove('hidden');
+                                    buttonText.textContent = 'Replacing...';
+                                    confirmBtn.disabled = true;
+                                    cancelBtn.disabled = true;
+                                    closeBtn.disabled = true;
+                                    confirmBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                                    cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                                    closeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                                    
+                                    // Show fullscreen loading overlay
+                                    setLoadingMessage('Replacing existing sessions...');
                                     setIsStatusChanging(true);
+                                    
                                     const res = await fetch('/api/voiceSessions/batch', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
@@ -856,6 +883,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                                   } catch (e) {
                                     console.error(e);
                                     showToast('error', 'Failed to replace sessions');
+                                    
+                                    // Reset button state on error
+                                    spinner.classList.add('hidden');
+                                    buttonText.textContent = 'Overwrite and save';
+                                    confirmBtn.disabled = false;
+                                    cancelBtn.disabled = false;
+                                    closeBtn.disabled = false;
+                                    confirmBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                                    cancelBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                    closeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                                   } finally {
                                     setIsStatusChanging(false);
                                     close();
@@ -865,22 +902,42 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                               return;
                             }
 
-                            // Show fullscreen overlay loader (reuse status one)
+                            // Show fullscreen overlay loader
+                            setLoadingMessage('Creating sessions from outline...');
                             setIsStatusChanging(true);
+                            
+                            console.log('Save as Sessions - Request payload:', {
+                              documentId,
+                              replaceBeyondFirst: false,
+                              sessions: sessionInputs
+                            });
+                            
                             const res = await fetch('/api/voiceSessions/batch', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ documentId, replaceBeyondFirst: false, sessions: sessionInputs })
                             });
-                            if (!res.ok) throw new Error(`Failed: ${res.status}`);
+                            
+                            console.log('Save as Sessions - Response status:', res.status);
+                            
+                            if (!res.ok) {
+                              const errorData = await res.json().catch(() => null);
+                              console.error('Save as Sessions - Error response:', errorData);
+                              throw new Error(errorData?.error || `HTTP ${res.status}: ${res.statusText}`);
+                            }
+                            
+                            const responseData = await res.json();
+                            console.log('Save as Sessions - Success response:', responseData);
+                            
                             // Reload document fresh
                             const fresh = await DocumentService.getDocumentWithSessions(documentId);
                             setDocument(fresh);
                             setIsOutlineModalOpen(false);
                             showToast('success', 'Sessions created from outline');
                           } catch (e) {
-                            console.error(e);
-                            showToast('error', 'Failed to create sessions from outline');
+                            console.error('Save as Sessions - Full error:', e);
+                            const errorMessage = e instanceof Error ? e.message : 'Failed to create sessions from outline';
+                            showToast('error', errorMessage);
                           } finally {
                             setIsStatusChanging(false);
                           }
@@ -897,6 +954,12 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           </div>
         </div>
       )}
+
+      {/* Loading Overlay for Save as Sessions and other status changes */}
+      <LoadingOverlay 
+        isVisible={isStatusChanging} 
+        message={loadingMessage}
+      />
 
       </div>
     </div>

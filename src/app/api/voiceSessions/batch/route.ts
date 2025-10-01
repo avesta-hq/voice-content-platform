@@ -9,13 +9,18 @@ type BatchSessionInput = Omit<VoiceSession, 'id' | 'documentId' | 'timestamp' | 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Batch sessions API - Request body:', body);
+    
     const { documentId, replaceBeyondFirst, sessions } = body as {
       documentId?: string;
       replaceBeyondFirst?: boolean;
       sessions?: BatchSessionInput[];
     };
 
+    console.log('Batch sessions API - Parsed params:', { documentId, replaceBeyondFirst, sessionsCount: sessions?.length });
+
     if (!documentId || !Array.isArray(sessions) || sessions.length === 0) {
+      console.error('Batch sessions API - Validation failed:', { documentId, sessionsIsArray: Array.isArray(sessions), sessionsLength: sessions?.length });
       return NextResponse.json({ error: 'Missing required fields: documentId, sessions' }, { status: 400 });
     }
 
@@ -87,9 +92,10 @@ export async function POST(request: NextRequest) {
 
     await hybridStorageService.saveDatabase(db);
 
+    console.log('Batch sessions API - Success:', { createdCount: created.length, documentId });
     return NextResponse.json({ created });
   } catch (error) {
-    console.error('Batch sessions error:', error);
+    console.error('Batch sessions API - Error:', error);
     return NextResponse.json({ error: 'Failed to process batch sessions' }, { status: 500 });
   }
 }
