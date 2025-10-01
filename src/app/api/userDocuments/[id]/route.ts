@@ -43,29 +43,61 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    // Only allow edits in draft database
-    const db = await hybridStorageService.getDatabase();
+    // Try draft database first
+    const draftDb = await hybridStorageService.getDatabase();
     
-    if (!db || !db.userDocuments) {
-      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    if (!draftDb) {
+      return NextResponse.json({ error: 'Draft database not found' }, { status: 500 });
     }
     
-    const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    // Initialize userDocuments array if it doesn't exist
+    draftDb.userDocuments = draftDb.userDocuments || [];
     
-    if (documentIndex === -1) {
-      return NextResponse.json({ error: 'Document not found in draft database' }, { status: 404 });
+    const draftDocumentIndex = draftDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    
+    if (draftDocumentIndex !== -1) {
+      // Document found in draft database - update it
+      draftDb.userDocuments[draftDocumentIndex] = {
+        ...draftDb.userDocuments[draftDocumentIndex],
+        ...body,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save draft database
+      await hybridStorageService.saveDatabase(draftDb);
+      
+      return NextResponse.json(draftDb.userDocuments[draftDocumentIndex]);
     }
     
-    db.userDocuments[documentIndex] = {
-      ...db.userDocuments[documentIndex],
-      ...body,
-      updatedAt: new Date().toISOString()
-    };
+    // Document not found in draft database, try completed database (blog.json)
+    const completedDb = await hybridStorageService.getBlogDatabase();
     
-    // Save database using hybrid storage
-    await hybridStorageService.saveDatabase(db);
+    if (!completedDb) {
+      return NextResponse.json({ error: 'Completed database not found' }, { status: 500 });
+    }
     
-    return NextResponse.json(db.userDocuments[documentIndex]);
+    // Initialize userDocuments array if it doesn't exist
+    completedDb.userDocuments = completedDb.userDocuments || [];
+    
+    const completedDocumentIndex = completedDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    
+    if (completedDocumentIndex !== -1) {
+      // Document found in completed database - update it
+      completedDb.userDocuments[completedDocumentIndex] = {
+        ...completedDb.userDocuments[completedDocumentIndex],
+        ...body,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save completed database
+      await hybridStorageService.saveBlogDatabase(completedDb);
+      
+      return NextResponse.json(completedDb.userDocuments[completedDocumentIndex]);
+    }
+    
+    // Document not found in either database
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    
   } catch (error) {
     console.error('Error updating userDocument:', error);
     return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
@@ -80,37 +112,75 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     
-    // Only allow edits in draft database
-    const db = await hybridStorageService.getDatabase();
+    // Try draft database first
+    const draftDb = await hybridStorageService.getDatabase();
     
-    if (!db || !db.userDocuments) {
-      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    if (!draftDb) {
+      return NextResponse.json({ error: 'Draft database not found' }, { status: 500 });
     }
     
-    const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    // Initialize userDocuments array if it doesn't exist
+    draftDb.userDocuments = draftDb.userDocuments || [];
     
-    if (documentIndex === -1) {
-      return NextResponse.json({ error: 'Document not found in draft database' }, { status: 404 });
-    }
+    const draftDocumentIndex = draftDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    
+    if (draftDocumentIndex !== -1) {
+      // Document found in draft database - update it
+      const existing = draftDb.userDocuments[draftDocumentIndex];
+      let nextGeneratedContent = existing.generatedContent;
+      if (body && typeof body === 'object' && 'generatedContent' in body && body.generatedContent) {
+        nextGeneratedContent = { ...(existing.generatedContent || {}), ...body.generatedContent };
+      }
 
-    // Deep merge for generatedContent to avoid overwriting sibling platforms
-    const existing = db.userDocuments[documentIndex];
-    let nextGeneratedContent = existing.generatedContent;
-    if (body && typeof body === 'object' && 'generatedContent' in body && body.generatedContent) {
-      nextGeneratedContent = { ...(existing.generatedContent || {}), ...body.generatedContent };
+      draftDb.userDocuments[draftDocumentIndex] = {
+        ...existing,
+        ...body,
+        ...(nextGeneratedContent ? { generatedContent: nextGeneratedContent } : {}),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save draft database
+      await hybridStorageService.saveDatabase(draftDb);
+      
+      return NextResponse.json(draftDb.userDocuments[draftDocumentIndex]);
     }
+    
+    // Document not found in draft database, try completed database (blog.json)
+    const completedDb = await hybridStorageService.getBlogDatabase();
+    
+    if (!completedDb) {
+      return NextResponse.json({ error: 'Completed database not found' }, { status: 500 });
+    }
+    
+    // Initialize userDocuments array if it doesn't exist
+    completedDb.userDocuments = completedDb.userDocuments || [];
+    
+    const completedDocumentIndex = completedDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    
+    if (completedDocumentIndex !== -1) {
+      // Document found in completed database - update it
+      const existing = completedDb.userDocuments[completedDocumentIndex];
+      let nextGeneratedContent = existing.generatedContent;
+      if (body && typeof body === 'object' && 'generatedContent' in body && body.generatedContent) {
+        nextGeneratedContent = { ...(existing.generatedContent || {}), ...body.generatedContent };
+      }
 
-    db.userDocuments[documentIndex] = {
-      ...existing,
-      ...body,
-      ...(nextGeneratedContent ? { generatedContent: nextGeneratedContent } : {}),
-      updatedAt: new Date().toISOString()
-    };
+      completedDb.userDocuments[completedDocumentIndex] = {
+        ...existing,
+        ...body,
+        ...(nextGeneratedContent ? { generatedContent: nextGeneratedContent } : {}),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save completed database
+      await hybridStorageService.saveBlogDatabase(completedDb);
+      
+      return NextResponse.json(completedDb.userDocuments[completedDocumentIndex]);
+    }
     
-    // Save database using hybrid storage
-    await hybridStorageService.saveDatabase(db);
+    // Document not found in either database
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     
-    return NextResponse.json(db.userDocuments[documentIndex]);
   } catch (error) {
     console.error('Error updating userDocument:', error);
     return NextResponse.json({ error: 'Failed to update document' }, { status: 500 });
@@ -124,26 +194,53 @@ export async function DELETE(
   try {
     const { id } = await params;
     
-    // Get current database using hybrid storage
-    const db = await hybridStorageService.getDatabase();
+    // Try draft database first
+    const draftDb = await hybridStorageService.getDatabase();
     
-    if (!db || !db.userDocuments) {
-      return NextResponse.json({ error: 'Database not found' }, { status: 500 });
+    if (!draftDb) {
+      return NextResponse.json({ error: 'Draft database not found' }, { status: 500 });
     }
     
-    const documentIndex = db.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    // Initialize userDocuments array if it doesn't exist
+    draftDb.userDocuments = draftDb.userDocuments || [];
     
-    if (documentIndex === -1) {
-      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    const draftDocumentIndex = draftDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    
+    if (draftDocumentIndex !== -1) {
+      // Document found in draft database - delete it
+      draftDb.userDocuments.splice(draftDocumentIndex, 1);
+      
+      // Save draft database
+      await hybridStorageService.saveDatabase(draftDb);
+      
+      return NextResponse.json({ message: 'Document deleted successfully' });
     }
     
-    // Remove the document
-    db.userDocuments.splice(documentIndex, 1);
+    // Document not found in draft database, try completed database (blog.json)
+    const completedDb = await hybridStorageService.getBlogDatabase();
     
-    // Save database using hybrid storage
-    await hybridStorageService.saveDatabase(db);
+    if (!completedDb) {
+      return NextResponse.json({ error: 'Completed database not found' }, { status: 500 });
+    }
     
-    return NextResponse.json({ message: 'Document deleted successfully' });
+    // Initialize userDocuments array if it doesn't exist
+    completedDb.userDocuments = completedDb.userDocuments || [];
+    
+    const completedDocumentIndex = completedDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
+    
+    if (completedDocumentIndex !== -1) {
+      // Document found in completed database - delete it
+      completedDb.userDocuments.splice(completedDocumentIndex, 1);
+      
+      // Save completed database
+      await hybridStorageService.saveBlogDatabase(completedDb);
+      
+      return NextResponse.json({ message: 'Document deleted successfully' });
+    }
+    
+    // Document not found in either database
+    return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    
   } catch (error) {
     console.error('Error deleting userDocument:', error);
     return NextResponse.json({ error: 'Failed to delete document' }, { status: 500 });
