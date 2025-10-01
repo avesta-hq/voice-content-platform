@@ -324,7 +324,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               <DialogHeader>
                                 <DialogTitle>Delete Document</DialogTitle>
                                 <DialogDescription>
-                                  Are you sure you want to delete "{document.title}"? This action cannot be undone.
+                                  Are you sure you want to delete &quot;{document.title}&quot;? This action cannot be undone.
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>
@@ -553,7 +553,7 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               <DialogHeader>
                                 <DialogTitle>Delete Document</DialogTitle>
                                 <DialogDescription>
-                                  Are you sure you want to delete "{document.title}"? This action cannot be undone.
+                                  Are you sure you want to delete &quot;{document.title}&quot;? This action cannot be undone.
                                 </DialogDescription>
                               </DialogHeader>
                               <DialogFooter>

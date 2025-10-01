@@ -462,7 +462,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       const fieldName = platformFieldMap[editPlatformKey] || editPlatformKey;
       
       // Prepare the update payload for the server
-      let updatePayload: any = {
+      const updatePayload: { generatedContent: Record<string, string | string[]>; updatedAt: string } = {
         generatedContent: {},
         updatedAt: new Date().toISOString()
       };
@@ -525,7 +525,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
       const fieldName = platformFieldMap[platformKey] || platformKey;
       
       // Prepare the update payload for the server
-      let updatePayload: any = {
+      const updatePayload: { generatedContent: Record<string, string | string[]>; updatedAt: string } = {
         generatedContent: {},
         updatedAt: new Date().toISOString()
       };

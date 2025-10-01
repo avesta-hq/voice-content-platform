@@ -360,7 +360,7 @@ export default function SessionRecorder({ inputLanguage, onSessionComplete, onCa
               </li>
               <li className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <span>Click the stop button when you're finished with this session</span>
+                <span>Click the stop button when you&apos;re finished with this session</span>
               </li>
               <li className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0"></div>

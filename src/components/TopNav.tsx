@@ -55,7 +55,7 @@ export default function TopNav() {
   const NavItem = ({ href, label, icon: Icon, mobile = false, onClick }: { 
     href: string; 
     label: string; 
-    icon?: React.ComponentType<any>;
+    icon?: React.ComponentType<{ className?: string }>;
     mobile?: boolean;
     onClick?: () => void;
   }) => {

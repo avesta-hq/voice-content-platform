@@ -4,38 +4,44 @@ import { useRouter, useParams } from "next/navigation";
 import { DocumentService } from "@/lib/documentService";
 import { UserService } from "@/lib/userService";
 import ContentProcessor from "@/components/ContentProcessor";
+import { Document } from "@/types";
+
+interface ContentItem {
+  platform: string;
+  content: string;
+}
 
 export default function GenerateContentPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const docId = params?.id as string;
   const [error, setError] = useState<string>("");
-  const [document, setDocument] = useState<any>(null);
+  const [document, setDocument] = useState<Document | null>(null);
   const hasRunRef = useRef<boolean>(false);
 
   // Move handleProcessingComplete outside useEffect so it's accessible
-  const handleProcessingComplete = async (content: any[]) => {
+  const handleProcessingComplete = async (content: ContentItem[]) => {
     try {
       // Convert ContentProcessor format to expected format
-      const twitterContent = content.find((c: any) => c.platform === 'Twitter')?.content || '';
-      const twitterThreadContent = content.find((c: any) => c.platform === 'Twitter with Thread')?.content || '';
+      const twitterContent = content.find((c: ContentItem) => c.platform === 'Twitter')?.content || '';
+      const twitterThreadContent = content.find((c: ContentItem) => c.platform === 'Twitter with Thread')?.content || '';
       
       // Extract Twitter thread from the thread content if it contains numbered tweets
       let twitterThread: string[] = [];
       if (twitterThreadContent && (twitterThreadContent.includes('Thread 🧵') || twitterThreadContent.includes('/'))) {
         // Split by numbered tweets (1/, 2/, 3/, etc.) and clean up
-        const threadParts = twitterThreadContent.split(/\n*\d+\/\s*/).filter(part => part.trim());
+        const threadParts = twitterThreadContent.split(/\n*\d+\/\s*/).filter((part: string) => part.trim());
         if (threadParts.length > 1) {
           // Remove the "Thread 🧵" prefix if it exists
-          twitterThread = threadParts.map(part => part.replace(/^Thread 🧵\s*/, '').trim()).filter(Boolean);
+          twitterThread = threadParts.map((part: string) => part.replace(/^Thread 🧵\s*/, '').trim()).filter(Boolean);
         }
       }
       
       const formattedContent = {
-        blog: content.find((c: any) => c.platform === 'Blog Post')?.content || '',
-        linkedin: content.find((c: any) => c.platform === 'LinkedIn')?.content || '',
+        blog: content.find((c: ContentItem) => c.platform === 'Blog Post')?.content || '',
+        linkedin: content.find((c: ContentItem) => c.platform === 'LinkedIn')?.content || '',
         twitter: twitterContent,
-        podcast: content.find((c: any) => c.platform === 'Podcast Script')?.content || '',
+        podcast: content.find((c: ContentItem) => c.platform === 'Podcast Script')?.content || '',
         inputLanguage: document?.inputLanguage || 'en',
         outputLanguage: document?.outputLanguage || 'en',
         twitterThread: twitterThread.length > 0 ? twitterThread : [],
@@ -92,8 +98,8 @@ export default function GenerateContentPage() {
   if (document) {
     // Build combined transcript
     const combinedTranscript = document.sessions
-      .sort((a: any, b: any) => a.sessionNumber - b.sessionNumber)
-      .map((s: any, idx: number) => {
+      .sort((a: { sessionNumber: number }, b: { sessionNumber: number }) => a.sessionNumber - b.sessionNumber)
+      .map((s: { title?: string; transcript: string }, idx: number) => {
         const indexLabel = `${idx + 1}.`;
         const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
         const raw = (s.transcript || '').trim();
