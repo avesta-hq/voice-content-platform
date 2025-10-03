@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+// Dialog imports removed - using custom modal for delete confirmation
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { DocumentGridSkeleton } from '@/components/ui/loading-state';
@@ -129,7 +129,13 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
           <p class="text-gray-700 text-sm">You're about to permanently delete <span class="font-medium">${documentTitle}</span> and all its sessions. This cannot be undone.</p>
           <div class="flex justify-end gap-3">
             <button id="del-cancel" class="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800">Cancel</button>
-            <button id="del-confirm" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white">Delete</button>
+            <button id="del-confirm" class="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white flex items-center gap-2">
+              <svg id="del-spinner" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span id="del-text">Delete</span>
+            </button>
           </div>
         </div>
       </div>`;
@@ -138,14 +144,50 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
     modal.querySelector('#del-close')?.addEventListener('click', close);
     modal.querySelector('#del-cancel')?.addEventListener('click', close);
     const confirmBtn = modal.querySelector('#del-confirm');
+    const cancelBtn = modal.querySelector('#del-cancel');
+    const closeBtn = modal.querySelector('#del-close');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
+        // Get button elements for loading state
+        const spinner = modal.querySelector('#del-spinner');
+        const buttonText = modal.querySelector('#del-text');
+        
         try {
+          // Show loading state immediately
+          if (spinner) spinner.classList.remove('hidden');
+          if (buttonText) buttonText.textContent = 'Deleting...';
+          
+          // Disable all buttons to prevent multiple clicks
+          confirmBtn.disabled = true;
+          if (cancelBtn) cancelBtn.disabled = true;
+          if (closeBtn) closeBtn.disabled = true;
+          
+          // Add visual disabled state
+          confirmBtn.classList.add('opacity-75', 'cursor-not-allowed');
+          if (cancelBtn) cancelBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          if (closeBtn) closeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          
+          // Show full-screen overlay after button loading state
           setOverlayMessage('Deleting document…');
           setIsStatusChanging(true);
+          
           await DocumentService.deleteDocument(documentId);
           await refreshDocuments();
         } catch (err) {
+          // Reset button state on error
+          if (spinner) spinner.classList.add('hidden');
+          if (buttonText) buttonText.textContent = 'Delete';
+          confirmBtn.disabled = false;
+          if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          }
+          if (closeBtn) {
+            closeBtn.disabled = false;
+            closeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          }
+          confirmBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+          
           setError('Failed to delete document');
           console.error('Delete document error:', err);
         } finally {
@@ -314,27 +356,9 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               {formatDate(document.createdAt || new Date().toISOString())}
                             </CardDescription>
                           </div>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="opacity-100">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Delete Document</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to delete &quot;{document.title}&quot;? This action cannot be undone.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button variant="outline">Cancel</Button>
-                                <Button variant="destructive" onClick={() => handleDeleteDocument(document.id)}>
-                                  Delete Document
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                          <Button variant="ghost" size="sm" className="opacity-100" onClick={() => handleDeleteDocument(document.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </CardHeader>
 
@@ -543,27 +567,9 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               {formatDate(document.createdAt || new Date().toISOString())}
                             </CardDescription>
                           </div>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="opacity-100">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Delete Document</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to delete &quot;{document.title}&quot;? This action cannot be undone.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button variant="outline">Cancel</Button>
-                                <Button variant="destructive" onClick={() => handleDeleteDocument(document.id)}>
-                                  Delete Document
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                          <Button variant="ghost" size="sm" className="opacity-100" onClick={() => handleDeleteDocument(document.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </CardHeader>
 

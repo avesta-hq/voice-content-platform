@@ -26,14 +26,20 @@ export default function GenerateContentPage() {
       const twitterContent = content.find((c: ContentItem) => c.platform === 'Twitter')?.content || '';
       const twitterThreadContent = content.find((c: ContentItem) => c.platform === 'Twitter with Thread')?.content || '';
       
-      // Extract Twitter thread from the thread content if it contains numbered tweets
+      // Extract Twitter thread from the thread content if it contains numbered tweets or double newlines
       let twitterThread: string[] = [];
-      if (twitterThreadContent && (twitterThreadContent.includes('Thread 🧵') || twitterThreadContent.includes('/'))) {
-        // Split by numbered tweets (1/, 2/, 3/, etc.) and clean up
-        const threadParts = twitterThreadContent.split(/\n*\d+\/\s*/).filter((part: string) => part.trim());
+      if (twitterThreadContent) {
+        // First try to split by double newlines (our new format)
+        const threadParts = twitterThreadContent.split('\n\n').filter((part: string) => part.trim());
         if (threadParts.length > 1) {
-          // Remove the "Thread 🧵" prefix if it exists
-          twitterThread = threadParts.map((part: string) => part.replace(/^Thread 🧵\s*/, '').trim()).filter(Boolean);
+          twitterThread = threadParts.map((part: string) => part.trim()).filter(Boolean);
+        } else if (twitterThreadContent.includes('Thread 🧵') || twitterThreadContent.includes('/')) {
+          // Fallback: Split by numbered tweets (1/, 2/, 3/, etc.) and clean up
+          const numberedParts = twitterThreadContent.split(/\n*\d+\/\s*/).filter((part: string) => part.trim());
+          if (numberedParts.length > 1) {
+            // Remove the "Thread 🧵" prefix if it exists
+            twitterThread = numberedParts.map((part: string) => part.replace(/^Thread 🧵\s*/, '').trim()).filter(Boolean);
+          }
         }
       }
       

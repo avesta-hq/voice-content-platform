@@ -363,19 +363,14 @@ export class DocumentService {
   static async deleteDocument(documentId: string): Promise<void> {
     return this.retryWithBackoff(async () => {
       try {
-        // Delete all sessions first
+        // Bulk delete all sessions for this document in one API call
         const sessionsResponse = await fetch(`${API_BASE_URL}/voiceSessions?documentId=${documentId}`, {
+          method: 'DELETE',
           headers: DocumentService.getAuthHeaders(),
         });
         
-        if (sessionsResponse.ok) {
-          const sessions: VoiceSession[] = await sessionsResponse.json();
-          for (const session of sessions) {
-            await fetch(`${API_BASE_URL}/voiceSessions/${session.id}`, {
-              method: 'DELETE',
-              headers: DocumentService.getAuthHeaders(),
-            });
-          }
+        if (!sessionsResponse.ok) {
+          console.warn('Failed to delete voice sessions, continuing with document deletion');
         }
         
         // Delete the document

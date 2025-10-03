@@ -77,7 +77,7 @@ export default function ContentProcessor({ originalText, languageSettings, onPro
         const transformedContent = [
           { platform: 'LinkedIn', content: content.linkedinPost, formatted: true },
           { platform: 'Twitter', content: content.twitterPost, formatted: true },
-          { platform: 'Twitter with Thread', content: content.twitterThread || content.twitterPost, formatted: true },
+          { platform: 'Twitter with Thread', content: content.twitterThread && Array.isArray(content.twitterThread) ? content.twitterThread.join('\n\n') : content.twitterPost, formatted: true },
           { platform: 'Podcast Script', content: content.podcastScript, formatted: true },
           { platform: 'Blog Post', content: content.blogPost, formatted: true }
         ];

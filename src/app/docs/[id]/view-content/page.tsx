@@ -62,7 +62,7 @@ export default function ViewContentPage() {
             { platform: "Blog Post", content: doc.generatedContent.blog, formatted: true },
           ];
           if (doc.generatedContent.twitterThread && doc.generatedContent.twitterThread.length > 0) {
-            items.splice(2, 0, { platform: "Twitter with thread", content: doc.generatedContent.twitterThread.join("\n\n"), formatted: true, twitterThread: doc.generatedContent.twitterThread });
+            items.splice(2, 0, { platform: "Twitter with Thread", content: doc.generatedContent.twitterThread.join("\n\n"), formatted: true, twitterThread: doc.generatedContent.twitterThread });
           }
           setContent(items);
         } else {

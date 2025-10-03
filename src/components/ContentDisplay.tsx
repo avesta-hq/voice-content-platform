@@ -455,7 +455,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         'blog': 'blog',
         'linkedin': 'linkedin', 
         'twitter': 'twitter',
-        'twitter-thread': 'twitterThread',
+        'twitter-with-thread': 'twitterThread',
         'podcast': 'podcast'
       };
       
@@ -518,7 +518,7 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
         'blog': 'blog',
         'linkedin': 'linkedin', 
         'twitter': 'twitter',
-        'twitter-thread': 'twitterThread', // Twitter thread updates the twitterThread field
+        'twitter-with-thread': 'twitterThread', // Twitter thread updates the twitterThread field
         'podcast': 'podcast'
       };
       
