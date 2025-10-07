@@ -200,7 +200,7 @@ export default function SocialReplyStudioPage() {
         <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
           {/* Enhanced Header */}
           <div className="text-center space-y-4 sm:space-y-6 py-4 sm:py-8">
-            <div className="relative">
+            {/* <div className="relative">
               <div className="w-24 h-24 bg-gradient-to-br from-primary via-orange-500 to-amber-500 rounded-2xl mx-auto flex items-center justify-center shadow-2xl shadow-primary/25 transform hover:scale-105 transition-all duration-300">
                 <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                   <MessageSquare className="w-10 h-10 text-white drop-shadow-lg" />
@@ -209,7 +209,7 @@ export default function SocialReplyStudioPage() {
               <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-bounce">
                 <Sparkles className="w-3 h-3 text-white" />
               </div>
-            </div>
+            </div> */}
             <div className="space-y-3">
               <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 via-primary to-orange-600 bg-clip-text text-transparent dark:from-white dark:via-primary dark:to-orange-400">
                 Social Reply Studio

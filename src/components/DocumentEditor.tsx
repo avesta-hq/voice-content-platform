@@ -33,6 +33,14 @@ import {
   Home,
   ArrowLeft
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface DocumentEditorProps {
   documentId: string;
@@ -48,6 +56,8 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [showSessionRecorder, setShowSessionRecorder] = useState(false);
   const [hasChangesAfterGeneration, setHasChangesAfterGeneration] = useState(false); // retained for future use
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const hasLoadedRef = useRef<string | null>(null);
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
@@ -180,9 +190,6 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
 
   const handleSessionDelete = async (sessionId: string) => {
     if (!document) return;
-    const confirm = window.confirm('Are you sure you want to delete this session? This action cannot be undone.');
-    if (!confirm) return;
-
     try {
       setDeletingSessionId(sessionId);
       const res = await fetch(`/api/voiceSessions/${sessionId}`, { method: 'DELETE' });
@@ -668,7 +675,10 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleSessionDelete(session.id)}
+                            onClick={() => {
+                              setSessionToDelete(session.id);
+                              setDeleteDialogOpen(true);
+                            }}
                             disabled={deletingSessionId === session.id}
                             className="text-destructive hover:text-destructive"
                             title={`Delete ${session.title && session.title.trim() ? session.title : `session ${session.sessionNumber}`}`}
@@ -962,6 +972,53 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
       />
 
       </div>
+
+      {/* Delete Session Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Session</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this session? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setSessionToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (sessionToDelete) {
+                  await handleSessionDelete(sessionToDelete);
+                  setDeleteDialogOpen(false);
+                  setSessionToDelete(null);
+                }
+              }}
+              disabled={!sessionToDelete || deletingSessionId === sessionToDelete}
+              className="flex items-center gap-2"
+            >
+              {deletingSessionId === sessionToDelete ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete Session
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

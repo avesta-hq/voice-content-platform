@@ -19,6 +19,7 @@ export default function ViewContentPage() {
   const [content, setContent] = useState<PlatformContent[] | null>(null);
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [documentTitle, setDocumentTitle] = useState<string>("");
   const hasLoadedRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function ViewContentPage() {
       try {
         setIsLoading(true);
         const doc = await DocumentService.getDocumentWithSessions(docId);
+        setDocumentTitle(doc.title);
         const combined = doc.sessions
           .sort((a, b) => a.sessionNumber - b.sessionNumber)
           .map((s, idx) => {
@@ -126,6 +128,7 @@ export default function ViewContentPage() {
             generatedContent={content}
             onBackToDashboard={() => router.push("/docs")}
             documentId={docId}
+            documentTitle={documentTitle}
           />
         )}
       </div>

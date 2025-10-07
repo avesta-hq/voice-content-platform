@@ -45,6 +45,7 @@ interface ContentDisplayProps {
   generatedContent: PlatformContent[];
   onBackToDashboard: () => void;
   documentId?: string;
+  documentTitle?: string;
 }
 
 // Minimal, safe markdown -> HTML for bold/italic plus line breaks
@@ -80,7 +81,7 @@ function markdownToHtml(markdown: string): string {
   return html;
 }
 
-export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard, documentId }: ContentDisplayProps) {
+export default function ContentDisplay({ originalText, generatedContent, onBackToDashboard, documentId, documentTitle }: ContentDisplayProps) {
   const params = useParams();
   const docId = documentId || (params?.id as string);
   
@@ -751,12 +752,14 @@ export default function ContentDisplay({ originalText, generatedContent, onBackT
               <Sparkles className="w-6 h-6 text-primary-foreground" />
             </div>
             <div className="text-left">
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                Your Content is Ready
-              </h1>
-              <p className="text-muted-foreground text-lg">
-                Professional content optimized for each platform
-        </p>
+              <div className="space-y-1">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                  {documentTitle}
+                </h1>
+                <p className="text-muted-foreground text-lg">
+                  Professional content optimized for each platform
+                </p>
+              </div>
       </div>
           </div>
       </div>
