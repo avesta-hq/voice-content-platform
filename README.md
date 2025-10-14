@@ -196,6 +196,5 @@ If you encounter any issues or have questions:
 2. Create a new issue with detailed information
 3. Include your browser, OS, and any error messages
 
----
 
 **Made with ❤️ using Next.js, TypeScript, and Tailwind CSS**
