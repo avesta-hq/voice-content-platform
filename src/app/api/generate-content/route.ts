@@ -22,6 +22,25 @@ export async function POST(request: NextRequest) {
       nodeEnv: process.env.NODE_ENV
     });
 
+    // Helper function to strip HTML but preserve emojis and text
+    const stripHtmlKeepEmojis = (html: string): string => {
+      return html
+        .replace(/<br\s*\/?>/gi, '\n')           // Convert <br> to newlines
+        .replace(/<\/p>/gi, '\n')                // Convert </p> to newlines
+        .replace(/<\/li>/gi, '\n')               // Convert </li> to newlines
+        .replace(/<\/h[1-6]>/gi, '\n')           // Convert heading ends to newlines
+        .replace(/<[^>]*>/g, '')                 // Remove all other HTML tags
+        .replace(/&nbsp;/g, ' ')                 // Convert &nbsp; to space
+        .replace(/&amp;/g, '&')                  // Convert &amp; to &
+        .replace(/&lt;/g, '<')                   // Convert &lt; to <
+        .replace(/&gt;/g, '>')                   // Convert &gt; to >
+        .replace(/&quot;/g, '"')                 // Convert &quot; to "
+        .replace(/&#39;/g, "'")                  // Convert &#39; to '
+        .replace(/\n\s*\n\s*\n/g, '\n\n')        // Normalize multiple newlines to double
+        .replace(/[ \t]+/g, ' ')                 // Normalize spaces/tabs to single space
+        .trim();
+    };
+
     // If a documentId is provided, prefer building the combined transcript from sessions (title + description)
     if (!originalText && documentId) {
       const db = await hybridStorageService.getDatabase();
@@ -34,7 +53,12 @@ export async function POST(request: NextRequest) {
             .map((s, idx) => {
               const indexLabel = `${idx + 1}.`;
               const title = (s.title && s.title.trim()) || `Section ${idx + 1}`;
-              const raw = (s.transcript || '').trim();
+              
+              // Use richContent if available (has emojis!), otherwise fall back to plain transcript
+              const raw = s.richContent 
+                ? stripHtmlKeepEmojis(s.richContent)  // Extract text + emojis from HTML
+                : (s.transcript || '').trim();         // Fallback to plain text
+              
               const chunks = raw.split(/\n{2,}/);
               const description = chunks[0] || '';
               const rest = chunks.slice(1).join('\n');

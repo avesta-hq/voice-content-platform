@@ -3,6 +3,168 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Rich Text Editor Styles */
+.rich-text-editor .ProseMirror {
+  outline: none;
+}
+
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.rich-text-editor .ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+
+.rich-text-editor .ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.75em 0;
+}
+
+.rich-text-editor .ProseMirror h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+
+.rich-text-editor .ProseMirror ul,
+.rich-text-editor .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 1em 0;
+}
+
+.rich-text-editor .ProseMirror ul {
+  list-style-type: disc;
+}
+
+.rich-text-editor .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.rich-text-editor .ProseMirror li {
+  margin: 0.5em 0;
+}
+
+.rich-text-editor .ProseMirror a {
+  color: hsl(24.6, 95%, 53.1%);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.rich-text-editor .ProseMirror a:hover {
+  color: hsl(24.6, 95%, 43.1%);
+}
+
+.rich-text-editor .ProseMirror strong {
+  font-weight: bold;
+}
+
+.rich-text-editor .ProseMirror em {
+  font-style: italic;
+}
+
+.rich-text-editor .ProseMirror u {
+  text-decoration: underline;
+}
+
+.rich-text-editor .ProseMirror s {
+  text-decoration: line-through;
+}
+
+.rich-text-editor .ProseMirror code {
+  background-color: rgba(97, 97, 97, 0.1);
+  border-radius: 0.25rem;
+  padding: 0.2em 0.4em;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.rich-text-editor .ProseMirror pre {
+  background-color: #f5f5f5;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.rich-text-editor .ProseMirror pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.rich-text-editor .ProseMirror blockquote {
+  border-left: 3px solid hsl(24.6, 95%, 53.1%);
+  padding-left: 1rem;
+  margin: 1em 0;
+  font-style: italic;
+}
+
+/* Dark mode styles for rich text editor */
+.dark .rich-text-editor .ProseMirror {
+  color: hsl(60, 9.1%, 97.8%);
+}
+
+.dark .rich-text-editor .ProseMirror code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .rich-text-editor .ProseMirror pre {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Image Lightbox Slide Animations */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-out-left {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.4s ease-out forwards;
+}
+
+.animate-slide-out-left {
+  animation: slide-out-left 0.3s ease-in forwards;
+}
+
+.animate-slide-out-right {
+  animation: slide-out-right 0.3s ease-in forwards;
+}
+
 :root {
   /* Form controls (preserved from original) */
   --input-bg: #ffffff;

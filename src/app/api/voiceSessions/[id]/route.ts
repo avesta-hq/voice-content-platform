@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hybridStorageService } from '@/lib/hybridStorageService';
-import { VoiceSession } from '@/types';
+import { s3ImageService } from '@/lib/s3ImageService';
+import { VoiceSession, UserDocument } from '@/types';
 
 export async function GET(
   request: NextRequest,
@@ -111,12 +112,26 @@ export async function DELETE(
 
     const removed = db.voiceSessions[sessionIndex];
     
+    // Delete all images for this session from S3
+    if (db.userDocuments && Array.isArray(db.userDocuments)) {
+      const document = db.userDocuments.find((d: UserDocument) => String(d.id) === String(removed.documentId));
+      if (document) {
+        try {
+          await s3ImageService.deleteSessionImages(document.userId, removed.documentId, id);
+          console.log(`✅ Deleted S3 images for session: ${id}`);
+        } catch (s3Error) {
+          console.error('S3 cleanup error (non-fatal):', s3Error);
+          // Continue with session deletion even if S3 cleanup fails
+        }
+      }
+    }
+    
     // Remove the session
     db.voiceSessions.splice(sessionIndex, 1);
 
     // Invalidate generated content on parent document (mark requiresRegeneration) and update totals
     if (db.userDocuments && Array.isArray(db.userDocuments)) {
-      const docIndex = db.userDocuments.findIndex((d: import('@/types').UserDocument) => String(d.id) === String(removed.documentId));
+      const docIndex = db.userDocuments.findIndex((d: UserDocument) => String(d.id) === String(removed.documentId));
       if (docIndex !== -1) {
         const remaining = (db.voiceSessions || []).filter((s: VoiceSession) => String(s.documentId) === String(removed.documentId));
         const totalSessions = remaining.length;

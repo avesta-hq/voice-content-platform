@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { DocumentWithSessions, GeneratedOutline } from '@/types';
+// COMMENTED OUT: SessionImage import (not needed without image features)
+// import { SessionImage } from '@/types';
 import { DocumentService } from '@/lib/documentService';
 import { getLanguageByCode } from '@/lib/languages';
 import { Button } from '@/components/ui/button';
@@ -10,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DocumentEditorSkeleton } from '@/components/ui/loading-state';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
+// COMMENTED OUT: ImageLightbox component temporarily disabled
+// import ImageLightbox from '@/components/ImageLightbox';
 import { 
   Breadcrumb,
   BreadcrumbItem,
@@ -63,6 +67,12 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const sessionsRef = useRef<HTMLDivElement>(null);
   const sessionRecorderRef = useRef<HTMLDivElement>(null);
+  
+  // COMMENTED OUT: Image lightbox state
+  // const [lightboxOpen, setLightboxOpen] = useState(false);
+  // const [lightboxImages, setLightboxImages] = useState<SessionImage[]>([]);
+  // const [lightboxInitialIndex, setLightboxInitialIndex] = useState(0);
+  
   // Outline generation state
   const [isOutlineModalOpen, setIsOutlineModalOpen] = useState(false);
   const [isGeneratingOutline, setIsGeneratingOutline] = useState(false);
@@ -608,9 +618,22 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                       
                       {/* Mobile: Word Count and Actions Line */}
                       <div className="flex items-center justify-between pl-11">
-                        <span className="text-sm text-muted-foreground">
-                          {session.transcript.trim().split(/\s+/).length} words
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {session.transcript.trim().split(/\s+/).length} words
+                          </span>
+                          {/* COMMENTED OUT: Image count badge */}
+                          {/*
+                          {session.images && session.images.length > 0 && (
+                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                              </svg>
+                              {session.images.length}
+                            </Badge>
+                          )}
+                          */}
+                        </div>
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -663,6 +686,17 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                       </div>
                       <div className="flex items-center text-sm text-muted-foreground gap-1 sm:gap-2">
                         <span>{session.transcript.trim().split(/\s+/).length} words</span>
+                        {/* COMMENTED OUT: Image count badge */}
+                        {/*
+                        {session.images && session.images.length > 0 && (
+                          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            </svg>
+                            {session.images.length}
+                          </Badge>
+                        )}
+                        */}
                         <div className="flex items-center gap-1">
                           <Button
                             variant="ghost"
@@ -706,6 +740,45 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
                       </div>
                     </div>
 
+                    {/* COMMENTED OUT: Attached Images */}
+                    {/*
+                    {session.images && session.images.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-medium text-muted-foreground uppercase">
+                            Attached Images ({session.images.length})
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {session.images.slice(0, 5).map((image, index) => (
+                            <button
+                              key={image.id}
+                              onClick={() => {
+                                setLightboxImages(session.images || []);
+                                setLightboxInitialIndex(index);
+                                setLightboxOpen(true);
+                              }}
+                              className="relative group w-16 h-16 rounded-md overflow-hidden border-2 border-border hover:border-primary transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                              title={`Click to view ${image.originalName} (${(image.fileSize / 1024 / 1024).toFixed(2)}MB)`}
+                            >
+                              <img
+                                src={image.s3Url}
+                                alt={image.originalName}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-white text-[10px] font-medium px-1 text-center">
+                                  {image.width && image.height ? `${image.width}×${image.height}` : 'View'}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    */}
+
                     {/* Session Notes (for user reference only; not used in generation) */}
                     {session.notes && session.notes.trim().length > 0 && (
                       <div className="mt-2">
@@ -746,6 +819,7 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           open={true}
           session={document.sessions.find(s => s.id === editSessionId)!}
           inputLanguage={document.inputLanguage}
+          documentId={document.id}
           onClose={() => setEditSessionId(null)}
           onSaved={(updated) => {
             setDocument(prev => {
@@ -1019,6 +1093,16 @@ export default function DocumentEditor({ documentId, onBackToDashboard, onGenera
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* COMMENTED OUT: Image Lightbox */}
+      {/*
+      <ImageLightbox
+        images={lightboxImages}
+        initialIndex={lightboxInitialIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+      */}
     </div>
   );
 }

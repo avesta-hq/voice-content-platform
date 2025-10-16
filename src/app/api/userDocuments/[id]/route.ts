@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hybridStorageService } from '@/lib/hybridStorageService';
-import { UserDocument } from '@/types';
+import { s3ImageService } from '@/lib/s3ImageService';
+import { UserDocument, VoiceSession } from '@/types';
 
 export async function GET(
   request: NextRequest,
@@ -207,8 +208,26 @@ export async function DELETE(
     const draftDocumentIndex = draftDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (draftDocumentIndex !== -1) {
+      const document = draftDb.userDocuments[draftDocumentIndex];
+      
+      // Delete all images for this document from S3
+      try {
+        await s3ImageService.deleteDocumentImages(document.userId, id);
+        console.log(`✅ Deleted S3 images for document: ${id}`);
+      } catch (s3Error) {
+        console.error('S3 cleanup error (non-fatal):', s3Error);
+        // Continue with document deletion even if S3 cleanup fails
+      }
+      
       // Document found in draft database - delete it
       draftDb.userDocuments.splice(draftDocumentIndex, 1);
+      
+      // Also delete associated sessions
+      if (draftDb.voiceSessions) {
+        draftDb.voiceSessions = draftDb.voiceSessions.filter(
+          (session: VoiceSession) => session.documentId !== id
+        );
+      }
       
       // Save draft database
       await hybridStorageService.saveDatabase(draftDb);
@@ -229,8 +248,26 @@ export async function DELETE(
     const completedDocumentIndex = completedDb.userDocuments.findIndex((doc: UserDocument) => doc.id === id);
     
     if (completedDocumentIndex !== -1) {
+      const document = completedDb.userDocuments[completedDocumentIndex];
+      
+      // Delete all images for this document from S3
+      try {
+        await s3ImageService.deleteDocumentImages(document.userId, id);
+        console.log(`✅ Deleted S3 images for document: ${id}`);
+      } catch (s3Error) {
+        console.error('S3 cleanup error (non-fatal):', s3Error);
+        // Continue with document deletion even if S3 cleanup fails
+      }
+      
       // Document found in completed database - delete it
       completedDb.userDocuments.splice(completedDocumentIndex, 1);
+      
+      // Also delete associated sessions
+      if (completedDb.voiceSessions) {
+        completedDb.voiceSessions = completedDb.voiceSessions.filter(
+          (session: VoiceSession) => session.documentId !== id
+        );
+      }
       
       // Save completed database
       await hybridStorageService.saveBlogDatabase(completedDb);

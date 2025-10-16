@@ -145,6 +145,30 @@ export interface VoiceSession {
   title?: string;
   description?: string;
   estimatedDurationSec?: number;
+  
+  // Rich content and images (new features)
+  richContent?: string; // HTML from rich text editor
+  editMode?: 'voice' | 'text'; // Current editing mode
+  createdWith?: 'voice' | 'text'; // How session was initially created
+  lastEditedWith?: 'voice' | 'text'; // Last editing method used
+  images?: SessionImage[]; // Attached images
+  imageCount?: number; // Quick reference for image count
+}
+
+// Session image metadata
+export interface SessionImage {
+  id: string;
+  fileName: string; // Generated filename (img-timestamp.ext)
+  originalName: string; // Original uploaded filename
+  fileSize: number; // Size in bytes
+  fileType: string; // MIME type (image/jpeg, etc.)
+  uploadedAt: string; // ISO timestamp
+  order: number; // Display order (1-5)
+  s3Path: string; // Full S3 path
+  s3Url: string; // Signed URL for access
+  width?: number; // Image width in pixels
+  height?: number; // Image height in pixels
+  caption?: string; // Optional user caption
 }
 
 export interface DocumentWithSessions extends UserDocument {
