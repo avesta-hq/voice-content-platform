@@ -194,7 +194,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 If you encounter any issues or have questions:
 1. Check the [Issues](https://github.com/yourusername/voice-content-platform/issues) page
 2. Create a new issue with detailed information
-3. Include your browser, OS, and any error messages
+3. Include your browser, OS, and any error messages.
 
 ---
 
