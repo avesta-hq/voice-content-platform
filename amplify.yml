@@ -32,6 +32,12 @@ frontend:
         - env | grep -e S3_REGION >> .env.production
         - env | grep -e S3_BUCKET_NAME >> .env.production
         - env | grep -e USE_S3_LOCAL >> .env.production
+        # S3 Image Configuration
+        - env | grep -e S3_IMAGES_FOLDER >> .env.production
+        - env | grep -e S3_SIGNED_URL_EXPIRY >> .env.production
+        - env | grep -e ALLOWED_IMAGE_TYPES >> .env.production
+        - env | grep -e MAX_IMAGE_SIZE_MB >> .env.production
+        - env | grep -e MAX_IMAGES_PER_SESSION >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next
