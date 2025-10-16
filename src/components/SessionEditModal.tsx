@@ -177,13 +177,13 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
 
   return (
     <Dialog open={open} onOpenChange={isSaving ? undefined : onClose}>
-      <DialogContent className="max-w-7xl w-[98vw] sm:w-[95vw] md:w-[92vw] lg:w-[88vw] xl:w-[85vw] max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-6xl xl:max-w-7xl w-full max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl">
             <Edit3 className="h-5 w-5 text-primary" />
             Edit Session {session.sessionNumber}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm sm:text-base">
             Add more voice input to this session or edit the title and content.
           </DialogDescription>
         </DialogHeader>
@@ -207,14 +207,14 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
             {session.origin === 'outline' && (
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                     Session Title
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <Label htmlFor="session-title">Title</Label>
+                    <Label htmlFor="session-title" className="text-sm sm:text-base">Title</Label>
                     <Input
                       id="session-title"
                       type="text"
@@ -222,6 +222,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Enter session title"
                       disabled={isSaving}
+                      className="h-10 sm:h-11 text-sm sm:text-base"
                     />
                   </div>
                 </CardContent>
@@ -230,21 +231,21 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
 
             {/* Current Content and Notes - Full width utilization */}
             {(session.transcript && session.transcript.trim().length > 0) || (session.notes && session.notes.trim().length > 0) ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 {session.transcript && session.transcript.trim().length > 0 && (
                   <Card className={`${session.notes && session.notes.trim().length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                     <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Volume2 className="h-4 w-4" />
+                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <Volume2 className="h-4 w-4 sm:h-5 sm:w-5" />
                         Current Content
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">
                         Existing voice transcript for this session
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="p-5 bg-muted/30 rounded-lg border max-h-64 overflow-y-auto">
-                        <p className="whitespace-pre-wrap text-foreground text-sm leading-relaxed">
+                      <div className="p-4 sm:p-5 bg-muted/30 rounded-lg border max-h-64 sm:max-h-80 overflow-y-auto">
+                        <p className="whitespace-pre-wrap text-foreground text-sm sm:text-base leading-relaxed">
                           {session.transcript}
                         </p>
                       </div>
@@ -255,16 +256,16 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
                 {session.notes && session.notes.trim().length > 0 && (
                   <Card className="lg:col-span-1">
                     <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <FileText className="h-4 w-4" />
+                      <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                         Session Notes
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="text-xs sm:text-sm">
                         Additional context and outline points
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="p-4 bg-accent/20 rounded-lg border border-accent/30 max-h-64 overflow-y-auto">
+                      <div className="p-3 sm:p-4 bg-accent/20 rounded-lg border border-accent/30 max-h-64 sm:max-h-80 overflow-y-auto">
                         {(() => {
                           const raw = session.notes!.trim();
                           const hasSeparator = raw.includes('\n\n');
@@ -300,9 +301,9 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
 
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Mic className="h-4 w-4" />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
                     Live Voice Input
                   </CardTitle>
                   <div className="flex items-center gap-2">
@@ -324,13 +325,13 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
                     </Badge>
                   </div>
                 </div>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Add more content to this session using voice input
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-6 bg-primary/5 border border-primary/20 rounded-lg min-h-[120px]">
-                  <p className="whitespace-pre-wrap text-foreground text-sm leading-relaxed">
+                <div className="p-4 sm:p-6 bg-primary/5 border border-primary/20 rounded-lg min-h-[120px] sm:min-h-[140px]">
+                  <p className="whitespace-pre-wrap text-foreground text-sm sm:text-base leading-relaxed">
                     {newTranscript || (
                       <span className="text-muted-foreground italic">
                         Start speaking to add more content...
@@ -338,11 +339,11 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
                     )}
                   </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   {!isRecording ? (
                     <Button 
                       onClick={startRecording} 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 w-full sm:w-auto"
                       disabled={isSaving}
                     >
                       <Mic className="h-4 w-4" />
@@ -352,7 +353,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
                     <Button 
                       onClick={stopRecording} 
                       variant="destructive" 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 w-full sm:w-auto"
                       disabled={isSaving}
                     >
                       <Square className="h-4 w-4" />
@@ -362,7 +363,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
                   <Button 
                     onClick={() => { setNewTranscript(''); cumulative.current=''; setRecordedDuration(0); }} 
                     variant="outline"
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 w-full sm:w-auto"
                     disabled={isSaving}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -375,17 +376,17 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
             {/* Preview Final Content - Full width */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Play className="h-4 w-4" />
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Play className="h-4 w-4 sm:h-5 sm:w-5" />
                   Preview Final Content
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   This is how your session will look after saving
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="p-6 bg-secondary/30 rounded-lg border border-secondary/40 min-h-[140px] max-h-72 overflow-y-auto">
-                  <p className="whitespace-pre-wrap text-foreground text-sm leading-relaxed">
+                <div className="p-4 sm:p-6 bg-secondary/30 rounded-lg border border-secondary/40 min-h-[140px] sm:min-h-[160px] max-h-72 sm:max-h-80 overflow-y-auto">
+                  <p className="whitespace-pre-wrap text-foreground text-sm sm:text-base leading-relaxed">
                     {(session.transcript + (newTranscript ? (session.transcript.endsWith(' ') || session.transcript.length===0 ? '' : ' ') + newTranscript : ''))}
                   </p>
                 </div>
@@ -395,8 +396,8 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
           </div>
         )}
 
-        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-3 pt-6 border-t">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-3 sm:gap-4 pt-6 border-t mt-6">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="text-xs">
               Session #{session.sessionNumber}
             </Badge>
@@ -406,11 +407,11 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
               </Badge>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <Button 
               onClick={onClose} 
               variant="outline" 
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
               disabled={isSaving}
             >
               <X className="h-4 w-4" />
@@ -419,7 +420,7 @@ export default function SessionEditModal({ open, session, inputLanguage, onClose
             <Button
               onClick={handleSave}
               disabled={isSaving || !((session.origin === 'outline' && title.trim() !== (session.title || '')) || newTranscript.trim().length > 0)}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto"
             >
               {isSaving ? (
                 <>
