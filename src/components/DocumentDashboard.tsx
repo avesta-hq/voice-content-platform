@@ -14,9 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingOverlay } from '@/components/ui/loading-overlay';
 import { DocumentGridSkeleton } from '@/components/ui/loading-state';
-import { Plus, Search, FileText, Mic, Trash2, Edit, Eye, Calendar, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, Mic, Trash2, Edit, Eye, Calendar, Loader2, Phone } from 'lucide-react';
 import { PageTransition, StaggeredContainer, StaggeredItem } from '@/components/animations/page-transitions';
 import { HoverScale, SlideInView } from '@/components/animations/interactive-elements';
+import PhoneNumberModal from '@/components/PhoneNumberModal';
+import CallConfirmationModal from '@/components/CallConfirmationModal';
 
 interface DocumentDashboardProps {
   onCreateNew: () => void;
@@ -24,6 +26,25 @@ interface DocumentDashboardProps {
   onGenerateContent: (documentId: string) => void;
   onViewContent?: (documentId: string) => void;
   reloadToken?: number;
+}
+
+// Helper function to generate greeting based on time
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    return 'Good morning';
+  } else if (hour >= 12 && hour < 17) {
+    return 'Good afternoon';
+  } else {
+    return 'Good evening';
+  }
+}
+
+// Helper function to generate message from template
+function generateCallMessage(userName: string): string {
+  const greeting = getGreeting();
+  const template = "Hello {userName}, {greeting}. You have 10 discrepancies in the team, please resolve as fast as you can";
+  return template.replace('{userName}', userName).replace('{greeting}', greeting);
 }
 
 
@@ -39,6 +60,15 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
   
   // Navigation loading states
   const [navigatingTo, setNavigatingTo] = useState<{ [key: string]: 'edit' | 'generate' | 'view' | null }>({});
+
+  // Voice Agent state
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [callMessage, setCallMessage] = useState('');
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+  const [callError, setCallError] = useState('');
 
   // Navigation handlers with immediate feedback
   const handleEditDocument = (documentId: string) => {
@@ -214,6 +244,133 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
       console.error('Status change error:', err);
     } finally {
       setIsStatusChanging(false);
+    }
+  };
+
+  // Voice Agent handlers
+  const handleCallClick = (documentId: string) => {
+    const currentUser = UserService.getCurrentUser();
+    if (!currentUser) {
+      setError('User not authenticated');
+      return;
+    }
+
+    setSelectedDocumentId(documentId);
+    setCallError('');
+
+    // If user has phone number, show confirmation modal
+    if (currentUser.phoneNumber) {
+      setPhoneNumber(currentUser.phoneNumber);
+      const message = generateCallMessage(
+        `${currentUser.firstName} ${currentUser.lastName}`
+      );
+      setCallMessage(message);
+      setShowConfirmModal(true);
+    } else {
+      // Show phone number input modal
+      setPhoneNumber('');
+      setShowPhoneModal(true);
+    }
+  };
+
+  const handlePhoneSubmit = (phone: string, save: boolean) => {
+    setPhoneNumber(phone);
+    const currentUser = UserService.getCurrentUser();
+    
+    if (!currentUser) {
+      setCallError('User not authenticated');
+      return;
+    }
+
+    // Save phone number if requested
+    if (save) {
+      // Update user phone number in database
+      fetch(`/api/users/${currentUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${UserService.getToken()}`,
+        },
+        body: JSON.stringify({ phoneNumber: phone }),
+      }).catch(err => console.error('Failed to save phone number:', err));
+    }
+
+    // Generate message and show confirmation
+    const message = generateCallMessage(
+      `${currentUser.firstName} ${currentUser.lastName}`
+    );
+    setCallMessage(message);
+    setShowPhoneModal(false);
+    setShowConfirmModal(true);
+  };
+
+  const handleCallConfirm = async () => {
+    if (!selectedDocumentId || !phoneNumber) {
+      setCallError('Missing required information');
+      return;
+    }
+
+    setIsInitiatingCall(true);
+    setCallError('');
+
+    try {
+      const currentUser = UserService.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('📞 [DASHBOARD] Initiating call:', { 
+        phoneNumber, 
+        documentId: selectedDocumentId,
+        userId: currentUser.id 
+      });
+
+      const response = await fetch('/api/voice-agent/initiate-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${UserService.getToken()}`,
+        },
+        body: JSON.stringify({
+          phoneNumber,
+          documentId: selectedDocumentId,
+          userId: currentUser.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error || `HTTP ${response.status}: Failed to initiate call`;
+        console.error('❌ [DASHBOARD] API Error:', errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log('✅ [DASHBOARD] Call initiated successfully:', data);
+
+      // Clear error state
+      setError('');
+      
+      // Close modals and reset state
+      setShowConfirmModal(false);
+      setSelectedDocumentId(null);
+      setPhoneNumber('');
+      setCallMessage('');
+
+      // Show success notification
+      // Using alert for now - can be replaced with toast notification
+      alert(`✅ Call initiated successfully!\n\nYou should receive a call at ${phoneNumber} shortly.\n\nMessage: "${callMessage}"`);
+      
+      console.log('📞 [DASHBOARD] Call flow completed successfully');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to initiate call';
+      console.error('❌ [DASHBOARD] Call error:', err);
+      setCallError(errorMessage);
+      
+      // Show error notification
+      console.warn('⚠️ [DASHBOARD] Showing error to user:', errorMessage);
+    } finally {
+      setIsInitiatingCall(false);
     }
   };
 
@@ -567,9 +724,20 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
                               {formatDate(document.createdAt || new Date().toISOString())}
                             </CardDescription>
                           </div>
-                          <Button variant="ghost" size="sm" className="opacity-100" onClick={() => handleDeleteDocument(document.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="opacity-100" 
+                              onClick={() => handleCallClick(document.id)}
+                              title="Call with generated message"
+                            >
+                              <Phone className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="opacity-100" onClick={() => handleDeleteDocument(document.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
 
@@ -689,6 +857,30 @@ export default function DocumentDashboard({ onCreateNew, onEditDocument, onGener
         <LoadingOverlay 
           isVisible={isStatusChanging} 
           message={overlayMessage}
+        />
+
+        {/* Voice Agent Modals */}
+        <PhoneNumberModal
+          isOpen={showPhoneModal}
+          onClose={() => setShowPhoneModal(false)}
+          onSubmit={handlePhoneSubmit}
+          defaultValue={phoneNumber}
+          isLoading={isInitiatingCall}
+        />
+
+        <CallConfirmationModal
+          isOpen={showConfirmModal}
+          phoneNumber={phoneNumber}
+          message={callMessage}
+          onConfirm={handleCallConfirm}
+          onCancel={() => {
+            setShowConfirmModal(false);
+            setSelectedDocumentId(null);
+            setPhoneNumber('');
+            setCallMessage('');
+          }}
+          isLoading={isInitiatingCall}
+          error={callError}
         />
         </div>
       </div>

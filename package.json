@@ -46,6 +46,7 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.63.0",
     "tailwind-merge": "^3.3.1",
+    "twilio": "^5.10.5",
     "vaul": "^1.1.2",
     "zod": "^3.25.76"
   },

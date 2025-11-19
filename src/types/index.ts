@@ -48,6 +48,7 @@ export interface User {
   lastName: string;
   role: string;
   avatar: string;
+  phoneNumber?: string; // E.164 format (e.g., +1234567890)
   createdAt: string;
   lastLogin: string;
   isActive: boolean;
@@ -194,4 +195,36 @@ export interface GeneratedOutline {
   outlineId: string;
   items: OutlineItem[];
   displayText?: string;
+}
+
+// Voice Agent Types
+export interface VoiceAgentCall {
+  id: string;
+  userId: number;
+  documentId: string;
+  phoneNumber: string;
+  status: 'pending' | 'initiated' | 'completed' | 'failed';
+  message: string;
+  createdAt: string;
+  initiatedAt?: string;
+  completedAt?: string;
+  error?: string;
+}
+
+export interface TextToSpeechRequest {
+  text: string;
+  language: string;
+  voice?: string;
+}
+
+export interface TextToSpeechResponse {
+  audioUrl: string;
+  duration: number;
+  format: 'mp3' | 'opus' | 'aac' | 'flac';
+}
+
+export interface CallInitiationRequest {
+  phoneNumber: string;
+  documentId: string;
+  contentType?: 'message';
 }
